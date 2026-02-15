@@ -24,12 +24,12 @@
 
 ### 4. 📝 Log Translator
 - **Error Decoding**: Converts obscure server logs and error codes into human-readable insights.
-- **Actionable Advice**: Suggests immediate steps to resolve the issue.
+    - **Actionable Advice**: Suggests immediate steps to resolve the issue.
 
-### 5. 📜 Activity History
-- **Local Persistence**: Automatically saves scan results to a local SQLite database (`history.db`).
-- **Privacy Focused**: Data stays on your machine and is never shared.
-- **Instant Restore**: Reload past analysis with a single click from the sidebar.
+### 5. 📜 Activity History (New)
+-   **Local Persistence**: Automatically saves your scan results to a local database (`history.db`).
+-   **Privacy Focused**: Data stays on your machine. No cloud storage.
+-   **Restore Context**: Click any past scan in the sidebar to instantly reload the full analysis.
 
 ---
 
@@ -99,8 +99,7 @@ defend-and-detect/
 │   ├── groq_service.py     # LLM interaction
 │   ├── hugginface_service.py # ML model inference
 │   ├── virustotal_service.py # Reputation checking
-│   ├── nvd_service.py      # NIST data fetching
-│   └── database_service.py # SQLite history management
+│   └── nvd_service.py      # NIST data fetching
 ├── assets/                 # Static assets (images, css)
 ├── config.py               # Central configuration
 ├── streamlit_app.py        # Main entry point & UI routing
