@@ -1,0 +1,113 @@
+/* Main Background - Deep Cyber Blue/Black */
+.stApp {
+    background-color: #0d1117;
+    background-image: radial-gradient(#1f2937 1px, transparent 1px);
+    background-size: 20px 20px;
+    font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Sidebar - Glassmorphism */
+section[data-testid="stSidebar"] {
+    background-color: rgba(13, 17, 23, 0.95);
+    border-right: 1px solid #30363d;
+}
+
+/* Titles and Headers - Cyber Cyan to Purple Gradient */
+h1, h2, h3 {
+    background: -webkit-linear-gradient(45deg, #00f2ff, #bc13fe);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700 !important;
+    letter-spacing: -0.5px;
+}
+
+h4, h5, h6 {
+    color: #e6edf3 !important;
+    font-weight: 600;
+}
+
+/* Inputs - Modern Dark Cards */
+.stTextInput input, .stTextArea textarea {
+    background-color: #161b22 !important;
+    color: #c9d1d9 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 8px !important;
+    font-family: 'Consolas', 'Monaco', monospace !important; /* Code feel for inputs only */
+}
+
+/* Focus State */
+.stTextInput input:focus, .stTextArea textarea:focus {
+    border-color: #00f2ff !important;
+    box-shadow: 0 0 0 1px #00f2ff !important;
+}
+
+/* Buttons - Cyberpunk Accent */
+.stButton button {
+    background: #161b22 !important;
+    color: #c9d1d9 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.stButton button:hover {
+    border-color: #00f2ff !important;
+    color: #00f2ff !important;
+    box-shadow: 0 0 8px rgba(0, 242, 255, 0.2);
+}
+
+/* Active State (Primary Button) */
+.stButton button[kind="primary"] {
+    background: linear-gradient(90deg, #00f2ff, #bc13fe) !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: 0 0 15px rgba(188, 19, 254, 0.5);
+    font-weight: 700 !important;
+}
+
+.stButton button[kind="primary"]:hover {
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.7);
+    transform: scale(1.02);
+}
+
+/* Data Display & Code Blocks */
+code {
+    font-family: 'Fira Code', monospace;
+    color: #7ee787 !important;
+    background-color: #161b22 !important;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 2px 6px;
+}
+
+/* Alerts/Messages - Softer Colors */
+.stAlert {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #c9d1d9;
+}
+
+/* Success Alert override */
+div[data-baseweb="notification"] {
+    border-radius: 8px;
+}
+
+/* Expander - Clean Borders */
+.streamlit-expanderHeader {
+    background-color: #161b22;
+    border-radius: 6px;
+    color: #c9d1d9 !important;
+}
+
+/* Progress Bar */
+.stProgress > div > div > div > div {
+    background: linear-gradient(90deg, #00f2ff, #bc13fe);
+}
+
+/* Divider */
+hr {
+    border-color: #30363d;
+}

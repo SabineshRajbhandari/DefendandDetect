@@ -1,0 +1,20 @@
+# Environment Variables (Contains Real Keys - NEVER COMMIT)
+.env
+.ipynb_checkpoints/
+
+# Streamlit Local Secrets (NEVER COMMIT)
+.streamlit/secrets.toml
+
+# Python Cache & Build Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# System Files
+.DS_Store
+Thumbs.db
