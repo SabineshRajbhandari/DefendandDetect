@@ -33,7 +33,7 @@ def main():
     # Navigation Buttons
     pages = {
         "Home": "🏠 DASHBOARD",
-        # "Phishing Detector": "📧 PHISHING DETECTOR",
+        "Phishing Detector": "📧 PHISHING DETECTOR",
         # "URL Analyzer": "🔗 URL ANALYZER",
         # "CVE Explainer": "🛡️ CVE EXPLAINER",
         # "Log Translator": "📝 LOG TRANSLATOR"
