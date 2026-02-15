@@ -14,6 +14,35 @@ def show_phishing_module():
         - Malicious links or attachments requests
         """)
 
+    from services.database_service import DatabaseService
+
+    # Check for restored history
+    if st.session_state.get("restored_result") and st.session_state.restored_result["type"] == "PHISHING":
+        res = st.session_state.restored_result
+        st.info(f"📜 Showing History from: {res['timestamp']}")
+        
+        # Display saved input
+        st.text_input("Email Subject", value="[Historical Scan]", disabled=True)
+        st.text_area("Email Body", value=res['input'], height=200, disabled=True)
+        
+        # Display saved result
+        # Display saved result
+        result_data = res['result']
+        hf_result = result_data.get('hf_result', {})
+        groq_result = result_data.get('groq_result', {})
+        
+        if hf_result.get("status") == "success":
+             st.info(f"Probabilistic Model: **{hf_result['label']}** ({hf_result['score']:.1%})")
+        
+        if groq_result.get("status") == "success":
+             st.markdown("### 🛡️ Threat Report")
+             st.markdown(groq_result["content"])
+        
+        if st.button("Start New Scan"):
+             st.session_state.restored_result = None
+             st.rerun()
+        return
+
     email_subject = st.text_input("Email Subject", placeholder="e.g. URGENT: Account Suspension")
     email_body = st.text_area("Email Body", height=200, placeholder="Paste the email content here...")
 
@@ -42,6 +71,13 @@ def show_phishing_module():
             result = groq_service.execute_prompt(user_prompt, system_prompt)
             
             if result["status"] == "success":
+                # Save to History
+                full_result = {
+                    "hf_result": hf_result,
+                    "groq_result": result
+                }
+                DatabaseService.save_scan("PHISHING", email_body[:50] + "...", full_result)
+
                 st.success("Analysis Complete")
                 st.markdown("### 🛡️ Threat Report")
                 st.markdown(result["content"])

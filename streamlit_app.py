@@ -2,6 +2,8 @@ import streamlit as st
 from config import Config
 from services.groq_service import groq_service
 
+from services.database_service import DatabaseService
+
 # Page Configuration
 st.set_page_config(
     page_title=Config.APP_NAME,
@@ -13,6 +15,11 @@ st.set_page_config(
 # Initialize Session State
 if "history" not in st.session_state:
     st.session_state.history = []
+if "restored_result" not in st.session_state:
+    st.session_state.restored_result = None
+
+# Initialize Database
+DatabaseService.init_db()
 
 def load_css():
     with open("style.css") as f:
@@ -46,9 +53,38 @@ def main():
         
         if st.sidebar.button(label, key=page_name, type=button_type, use_container_width=True):
             st.session_state.page = page_name
+            st.session_state.restored_result = None # Clear restored result on nav
             st.query_params["page"] = page_name  # Save to URL
             st.rerun() # Force reload to update UI immediately
     
+    st.sidebar.markdown("---")
+    
+    # History Sidebar
+    with st.sidebar.expander("📜 Recent Activity", expanded=True):
+        recent_scans = DatabaseService.get_recent_scans()
+        if not recent_scans:
+            st.info("No recent scans.")
+        else:
+            for scan in recent_scans:
+                label = f"[{scan['type']}] {scan['timestamp'].split(' ')[1]}"
+                if st.button(label, key=f"hist_{scan['id']}", help=scan['input']):
+                    st.session_state.restored_result = scan
+                    # Navigate to correct page
+                    page_map = {
+                        "PHISHING": "Phishing Detector",
+                        "URL": "URL Analyzer",
+                        "CVE": "CVE Explainer",
+                        "LOG": "Log Translator"
+                    }
+                    if scan['type'] in page_map:
+                        st.session_state.page = page_map[scan['type']]
+                        st.query_params["page"] = st.session_state.page
+                        st.rerun()
+            
+            if st.button("🗑️ Clear History"):
+                DatabaseService.clear_history()
+                st.rerun()
+
     st.sidebar.markdown("---")
     
     # API Key Configuration in Sidebar (if not in env)

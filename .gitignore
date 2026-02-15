@@ -18,3 +18,6 @@ ENV/
 # System Files
 .DS_Store
 Thumbs.db
+
+# Local Database
+history.db

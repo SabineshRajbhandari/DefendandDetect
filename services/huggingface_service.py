@@ -12,7 +12,7 @@ class HuggingFaceService:
     Used for ML-based classification of phishing emails and malicious URLs.
     """
     
-    API_URL = "https://api-inference.huggingface.co/models/"
+    API_URL = "https://router.huggingface.co/hf-inference/models/"
 
     @staticmethod
     def _query(payload: Dict[str, Any], model_id: str) -> Dict[str, Any]:
