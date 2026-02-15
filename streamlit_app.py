@@ -36,7 +36,7 @@ def main():
         "Phishing Detector": "📧 PHISHING DETECTOR",
         "URL Analyzer": "🔗 URL ANALYZER",
         "CVE Explainer": "🛡️ CVE EXPLAINER",
-        # "Log Translator": "📝 LOG TRANSLATOR"
+        "Log Translator": "📝 LOG TRANSLATOR"
     }
 
     for page_name, icon_name in pages.items():
