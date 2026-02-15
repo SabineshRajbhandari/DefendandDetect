@@ -34,8 +34,8 @@ def main():
     pages = {
         "Home": "🏠 DASHBOARD",
         "Phishing Detector": "📧 PHISHING DETECTOR",
-        # "URL Analyzer": "🔗 URL ANALYZER",
-        # "CVE Explainer": "🛡️ CVE EXPLAINER",
+        "URL Analyzer": "🔗 URL ANALYZER",
+        "CVE Explainer": "🛡️ CVE EXPLAINER",
         # "Log Translator": "📝 LOG TRANSLATOR"
     }
 
