@@ -26,10 +26,20 @@
 - **Error Decoding**: Converts obscure server logs and error codes into human-readable insights.
     - **Actionable Advice**: Suggests immediate steps to resolve the issue.
 
-### 5. 📜 Activity History (New)
--   **Local Persistence**: Automatically saves your scan results to a local database (`history.db`).
--   **Privacy Focused**: Data stays on your machine. No cloud storage.
--   **Restore Context**: Click any past scan in the sidebar to instantly reload the full analysis.
+### 5. 🔍 File Hash Scanner
+- **Malware Fingerprinting**: Scans SHA-256 hashes against **VirusTotal**'s database of known malware.
+- **AI Triage**: Uses **GROQ** to explain the significance of scan results and suggest containment steps.
+
+### 6. 📥 Professional Reporting (v1.2.0)
+- **Multi-format Exports**: Generate reports in **Markdown**, **JSON**, **Plain Text**, **CSV**, and **HTML**.
+- **Interactive Previews**: Real-time rendering of reports before downloading.
+- **Smarter Filenames**: Automated timestamping for streamlined incident tracking.
+- **Modern UI**: Sleek pill-based format selection for a premium user experience.
+
+### 7. 📜 Activity History
+- **Local Persistence**: Automatically saves your scan results to a local database (`history.db`).
+- **Privacy Focused**: Data stays on your machine. No cloud storage.
+- **Restore Context**: Click any past scan in the sidebar to instantly reload the full analysis.
 
 ---
 
