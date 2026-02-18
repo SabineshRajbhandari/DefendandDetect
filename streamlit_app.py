@@ -160,8 +160,8 @@ def main():
         from modules.phishing import show_phishing_module
         show_phishing_module()
     elif module == "URL Analyzer":
-        from modules.url_analyzer import show_url_module
-        show_url_module()
+        from modules.url_analyzer import show_url_analyzer
+        show_url_analyzer()
     elif module == "File Hash Scanner":
         from modules.hash_scanner import show_hash_scanner
         show_hash_scanner()

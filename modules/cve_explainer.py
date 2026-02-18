@@ -1,120 +1,126 @@
-import streamlit as st
+﻿import streamlit as st
 from services.groq_service import groq_service
 from prompts import PromptManager
 
 def show_cve_module():
-    st.header("🛡️ CVE Vulnerability Explainer")
-    st.markdown("Translate complex CVE descriptions into plain English for better understanding.")
+    st.header("🛡️ CVE Explainer")
+    st.markdown("Find and understand the impact of specific vulnerabilities.")
 
     with st.expander("ℹ️ How it works"):
         st.markdown("""
-        Takes a CVE ID (e.g., CVE-2021-44228) and provides:
-        - Real-world impact analysis
-        - Severity context
-        - Mitigation strategies
+        Search for a CVE (e.g., CVE-2021-44228) to get:
+        - **Severity** (CVSS Score)
+        - **Plain-English Impact**
+        - **Mitigation Strategies**
+        - **Real-world Examples**
         """)
 
     from services.database_service import DatabaseService
 
-    # Check for restored history
+    # 1. Check for restored history
     if st.session_state.get("restored_result") and st.session_state.restored_result["type"] == "CVE":
         res = st.session_state.restored_result
         st.info(f"📜 Showing History from: {res['timestamp']}")
+        display_cve_results(res['input'], res['result'], is_history=True, id=res['id'])
         
-        st.text_input("CVE ID", value=res['input'], disabled=True)
-        
-        result_data = res['result']
-        nvd_result = result_data.get("nvd_result", {})
-        groq_result = result_data.get("groq_result", {})
-
-        if nvd_result.get("status") == "success":
-            st.info(f"**Official Data Found**: {nvd_result['id']} (Severity: {nvd_result['severity']} - {nvd_result['score']})")
-            with st.expander("Show Official Description"):
-                st.write(nvd_result['description'])
-        
-        if groq_result.get("status") == "success":
-            if groq_result.get("thought"):
-                with st.expander("🧠 AI Thinking Process"):
-                    st.write(groq_result["thought"])
-            
-            st.markdown("### 📖 Vulnerability Insight")
-            st.markdown(groq_result["content"])
-
-            st.markdown("---")
-            st.subheader("📥 Export Historical Report")
-            export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="cve_hist_fmt")
-            
-            from services.report_service import ReportService
-            if "Markdown" in export_format:
-                report_content = ReportService.generate_markdown_report("CVE", res['input'], result_data)
-                ext = "md"
-            elif "JSON" in export_format:
-                report_content = ReportService.generate_json_report("CVE", res['input'], result_data)
-                ext = "json"
-            else:
-                report_content = ReportService.generate_text_report("CVE", res['input'], result_data)
-                ext = "txt"
-
-            st.download_button("📥 Finalize & Download Historical", report_content, file_name=f"cve_hist_{res['id']}.{ext}")
-
-        if st.button("Start New Explanation"):
+        if st.button("Back to New Search"):
              st.session_state.restored_result = None
              st.rerun()
         return
 
-    cve_id = st.text_input("CVE ID", placeholder="CVE-2021-44228")
+    # 2. Check for active (unsaved) recent result
+    if st.session_state.get("active_cve_result"):
+        res = st.session_state.active_cve_result
+        display_cve_results(res['cve_id'], res['result'])
+        if st.button("Start New Search"):
+            st.session_state.active_cve_result = None
+            st.rerun()
+        return
+
+    cve_id = st.text_input("Enter CVE ID", placeholder="CVE-2021-44228")
 
     if st.button("Explain Vulnerability"):
         if not cve_id:
             st.warning("Please enter a CVE ID.")
             return
 
-        with st.spinner("Analyzing security data..."):
-            # 1. Fetch NVD Data
-            from services.nvd_service import nvd_service
-            nvd_result = nvd_service.fetch_cve(cve_id)
-            
-            if nvd_result.get("status") == "success":
-                st.info(f"**Official Data Found**: {nvd_result['id']} (Severity: {nvd_result['severity']} - {nvd_result['score']})")
-                with st.expander("Show Official Description"):
-                    st.write(nvd_result['description'])
-            elif nvd_result.get("status") == "not_found":
-                st.warning("CVE ID not found in NVD database. Proceeding with general knowledge...")
-            
-            # 2. GROQ Explain
-            user_prompt = PromptManager.format_cve_prompt(cve_id, nvd_result)
+        with st.spinner("Fetching vulnerability data..."):
+            user_prompt = PromptManager.format_cve_prompt(cve_id)
             system_prompt = PromptManager.get_system_prompt("cve")
             
             result = groq_service.execute_prompt(user_prompt, system_prompt)
             
             if result["status"] == "success":
-                # Save to History
-                full_result = {
-                    "nvd_result": nvd_result,
-                    "groq_result": result
-                }
-                DatabaseService.save_scan("CVE", cve_id, full_result)
-
-                st.success("Explanation Generated")
-                st.markdown("### 📖 Vulnerability Insight")
-                st.markdown(result["content"])
-
-                # Report Download Options
-                st.markdown("---")
-                st.subheader("📥 Export Final Analysis")
-                export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="cve_fmt")
+                st.success("Analysis Complete")
                 
-                from services.report_service import ReportService
-                if "Markdown" in export_format:
-                    report_content = ReportService.generate_markdown_report("CVE", cve_id, full_result)
-                    ext = "md"
-                elif "JSON" in export_format:
-                    report_content = ReportService.generate_json_report("CVE", cve_id, full_result)
-                    ext = "json"
-                else:
-                    report_content = ReportService.generate_text_report("CVE", cve_id, full_result)
-                    ext = "txt"
+                # Save to History
+                DatabaseService.save_scan("CVE", cve_id, result)
 
-                st.download_button("📥 Finalize & Download", report_content, file_name=f"cve_report.{ext}")
+                # Save to active session
+                st.session_state.active_cve_result = {
+                    "cve_id": cve_id,
+                    "result": result
+                }
+                st.rerun()
             else:
-                st.error(f"Explanation Failed: {result['error']}")
+                st.error(f"Analysis Failed: {result['error']}")
+
+def display_cve_results(cve_id, result_data, is_history=False, id=None):
+    st.subheader(f"Vulnerability Analysis: {cve_id}")
+    
+    if result_data.get("status") == "success":
+        if result_data.get("thought"):
+            with st.expander("🧠 AI Thinking Process"):
+                st.write(result_data["thought"])
+        
+        st.markdown(result_data["content"])
+
+        st.markdown("---")
+        with st.popover("📥 Export Report"):
+            st.markdown("### 📤 Options")
+            export_format = st.pills(
+                "Select Format", 
+                ["Markdown (.md)", "JSON (.json)", "Text (.txt)", "CSV (.csv)", "HTML (.html)"], 
+                selection_mode="single",
+                default="Markdown (.md)",
+                key=f"fmt_{id}" if id else "fmt_active"
+            )
+            
+            from services.report_service import ReportService
+            from datetime import datetime
+            
+            if "Markdown" in export_format:
+                report_content = ReportService.generate_markdown_report("CVE", cve_id, result_data)
+                ext, mime = "md", "text/markdown"
+            elif "JSON" in export_format:
+                report_content = ReportService.generate_json_report("CVE", cve_id, result_data)
+                ext, mime = "json", "application/json"
+            elif "CSV" in export_format:
+                report_content = ReportService.generate_csv_report("CVE", cve_id, result_data)
+                ext, mime = "csv", "text/csv"
+            elif "HTML" in export_format:
+                report_content = ReportService.generate_html_report("CVE", cve_id, result_data)
+                ext, mime = "html", "text/html"
+            else:
+                report_content = ReportService.generate_text_report("CVE", cve_id, result_data)
+                ext, mime = "txt", "text/plain"
+
+            st.markdown("### 📝 Preview")
+            with st.container(height=500, border=True):
+                if ext == "md":
+                    st.markdown(report_content)
+                elif ext == "html":
+                    st.components.v1.html(report_content, height=600, scrolling=True)
+                else:
+                    st.markdown(f"```text\n{report_content}\n```")
+
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            fname = f"cve_{ts}.{ext}"
+            st.download_button(
+                f"🚀 Download as {ext.upper()}", 
+                report_content, 
+                file_name=fname, 
+                mime=mime,
+                key=f"dl_{id}" if id else "dl_active",
+                use_container_width=True
+            )

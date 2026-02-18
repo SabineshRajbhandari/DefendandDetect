@@ -1,152 +1,127 @@
-import streamlit as st
-import importlib
-from services.huggingface_service import HuggingFaceService
-from services.virustotal_service import VirusTotalService
-from services.groq_service import GroqService
+﻿import streamlit as st
+from services.groq_service import groq_service
 from prompts import PromptManager
-import validators
 
-def show_url_module():
-    st.header("🔗 Malicious URL Analyzer")
-    st.markdown("Deconstruct suspicious links using **VirusTotal** reputation + **Hugging Face** structural analysis.")
-    
+def show_url_analyzer():
+    st.header("🔗 URL Analyzer")
+    st.markdown("Deconstruct suspicious links to understand their intent.")
+
+    with st.expander("ℹ️ How it works"):
+        st.markdown("""
+        Enter a suspicious URL to get:
+        - Domain Reputation Info
+        - Path & Parameter Analysis
+        - Potential Redirect Chains
+        - Threat Score & Classification
+        """)
+
     from services.database_service import DatabaseService
 
-    # Check for restored history
+    # 1. Check for restored history
     if st.session_state.get("restored_result") and st.session_state.restored_result["type"] == "URL":
         res = st.session_state.restored_result
         st.info(f"📜 Showing History from: {res['timestamp']}")
+        display_url_results(res['input'], res['result'], is_history=True, id=res['id'])
         
-        url_input = st.text_input("Suspicious URL", value=res['input'], disabled=True)
-        
-        result_data = res['result']
-        vt_result = result_data.get('vt_result', {})
-        hf_result = result_data.get('hf_result', {})
-        final_analysis = result_data.get('final_analysis', {})
-        
-        # Display Results Logic (Duplicated for simplicity, ideally refactored)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("VirusTotal Reputation")
-            if vt_result.get("status") == "success":
-                if vt_result.get("is_malicious"):
-                    st.error(f"🚨 MALICIOUS ({vt_result['stats']['malicious']} vendors)")
-                else:
-                    st.success("✅ Clean / Unlisted")
-                if "stats" in vt_result:
-                    st.json(vt_result["stats"])
-        with col2:
-             st.subheader("Structural Analysis")
-             if hf_result.get("status") == "success":
-                label = hf_result.get("label")
-                score = hf_result.get("score")
-                color = "red" if label == "MALICIOUS" else "green"
-                st.markdown(f"**Prediction:** :{color}[{label}]")
-                st.progress(score, text=f"Confidence: {score:.2%}")
-        
-             st.markdown("### 🧠 Synthesis")
-             if final_analysis.get("status") == "success":
-                  st.markdown(final_analysis["content"])
-                  
-                  st.markdown("---")
-                  st.subheader("📥 Export Historical Report")
-                  export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="url_hist_fmt")
-                  
-                  from services.report_service import ReportService
-                  if "Markdown" in export_format:
-                      report_content = ReportService.generate_markdown_report("URL", res['input'], result_data)
-                      ext = "md"
-                  elif "JSON" in export_format:
-                      report_content = ReportService.generate_json_report("URL", res['input'], result_data)
-                      ext = "json"
-                  else:
-                      report_content = ReportService.generate_text_report("URL", res['input'], result_data)
-                      ext = "txt"
-
-                  st.download_button("📥 Finalize & Download Historical", report_content, file_name=f"url_hist_{res['id']}.{ext}")
-             
-        if st.button("Start New Scan"):
+        if st.button("Back to New Scan"):
              st.session_state.restored_result = None
              st.rerun()
         return
 
-    url_input = st.text_input("Enter Suspicious URL:", placeholder="http://login-update-security.com")
-    
-    if st.button("Analyze URL"):
-        if not validators.url(url_input):
-            st.error("Invalid URL format. Please include http:// or https://")
+    # 2. Check for active (unsaved) recent result
+    if st.session_state.get("active_url_result"):
+        res = st.session_state.active_url_result
+        display_url_results(res['url'], res['result'])
+        if st.button("Start New Analysis"):
+            st.session_state.active_url_result = None
+            st.rerun()
+        return
+
+    url = st.text_input("Suspicious URL", placeholder="https://login-security-update.com/verify")
+
+    if st.button("Analyze Link"):
+        if not url:
+            st.warning("Please enter a URL.")
             return
 
-        with st.spinner("Analyzing security data..."):
-            # 1. VirusTotal Check
-            vt_result = VirusTotalService.check_url(url_input)
+        with st.spinner("Analyzing URL structure..."):
+            user_prompt = PromptManager.format_url_prompt(url)
+            system_prompt = PromptManager.get_system_prompt("urls")
             
-            # 2. AI Classification (Hugging Face)
-            hf_result = HuggingFaceService.classify_url(url_input)
+            result = groq_service.execute_prompt(user_prompt, system_prompt)
             
-            # 3. GROQ Synthesis
-            groq = GroqService()
-            prompt = PromptManager.format_url_prompt(url_input, vt_result, hf_result)
-            final_analysis = groq.execute_prompt(prompt)
-
-            # Display Results
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.subheader("VirusTotal Reputation")
-                if vt_result.get("status") == "success":
-                    if vt_result.get("is_malicious"):
-                        st.error(f"🚨 MALICIOUS ({vt_result['stats']['malicious']} vendors)")
-                    else:
-                        st.success("✅ Clean / Unlisted")
-                    if "stats" in vt_result:
-                        st.json(vt_result["stats"])
-                else:
-                    st.warning(f"Check Failed: {vt_result.get('message')}")
-
-            with col2:
-                st.subheader("Structural Analysis")
-                if hf_result.get("status") == "success":
-                    label = hf_result.get("label")
-                    score = hf_result.get("score")
-                    color = "red" if label == "MALICIOUS" else "green"
-                    st.markdown(f"**Prediction:** :{color}[{label}]")
-                    st.progress(score, text=f"Confidence: {score:.2%}")
-                else:
-                    st.warning("AI Analysis Unavailable")
-
-            st.markdown("### 🧠 Synthesis")
-            if final_analysis["status"] == "success":
-                if final_analysis.get("thought"):
-                    with st.expander("🧠 AI Thinking Process"):
-                        st.write(final_analysis["thought"])
+            if result["status"] == "success":
+                st.success("Analysis Complete")
                 
                 # Save to History
-                full_result = {
-                    "vt_result": vt_result,
-                    "hf_result": hf_result,
-                    "final_analysis": final_analysis
+                DatabaseService.save_scan("URL", url, result)
+
+                # Save to active session
+                st.session_state.active_url_result = {
+                    "url": url,
+                    "result": result
                 }
-                DatabaseService.save_scan("URL", url_input, full_result)
-                
-                st.markdown(final_analysis["content"])
-
-                # Report Download Options
-                st.markdown("---")
-                st.subheader("📥 Export Final Analysis")
-                export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="url_fmt")
-                
-                from services.report_service import ReportService
-                if "Markdown" in export_format:
-                    report_content = ReportService.generate_markdown_report("URL", url_input, full_result)
-                    ext = "md"
-                elif "JSON" in export_format:
-                    report_content = ReportService.generate_json_report("URL", url_input, full_result)
-                    ext = "json"
-                else:
-                    report_content = ReportService.generate_text_report("URL", url_input, full_result)
-                    ext = "txt"
-
-                st.download_button("📥 Finalize & Download", report_content, file_name=f"url_report.{ext}")
+                st.rerun()
             else:
-                st.error("Synthesis failed.")
+                st.error(f"Analysis Failed: {result['error']}")
+
+def display_url_results(url, result_data, is_history=False, id=None):
+    st.info(f"**URL:** `{url}`")
+    
+    if result_data.get("status") == "success":
+        if result_data.get("thought"):
+            with st.expander("🧠 AI Thinking Process"):
+                st.write(result_data["thought"])
+        
+        st.markdown("### 📊 Structural Analysis")
+        st.markdown(result_data["content"])
+
+        st.markdown("---")
+        with st.popover("📥 Export Report"):
+            st.markdown("### 📤 Options")
+            export_format = st.pills(
+                "Select Format", 
+                ["Markdown (.md)", "JSON (.json)", "Text (.txt)", "CSV (.csv)", "HTML (.html)"], 
+                selection_mode="single",
+                default="Markdown (.md)",
+                key=f"fmt_{id}" if id else "fmt_active"
+            )
+            
+            from services.report_service import ReportService
+            from datetime import datetime
+            
+            if "Markdown" in export_format:
+                report_content = ReportService.generate_markdown_report("URL", url, result_data)
+                ext, mime = "md", "text/markdown"
+            elif "JSON" in export_format:
+                report_content = ReportService.generate_json_report("URL", url, result_data)
+                ext, mime = "json", "application/json"
+            elif "CSV" in export_format:
+                report_content = ReportService.generate_csv_report("URL", url, result_data)
+                ext, mime = "csv", "text/csv"
+            elif "HTML" in export_format:
+                report_content = ReportService.generate_html_report("URL", url, result_data)
+                ext, mime = "html", "text/html"
+            else:
+                report_content = ReportService.generate_text_report("URL", url, result_data)
+                ext, mime = "txt", "text/plain"
+
+            st.markdown("### 📝 Preview")
+            with st.container(height=500, border=True):
+                if ext == "md":
+                    st.markdown(report_content)
+                elif ext == "html":
+                    st.components.v1.html(report_content, height=600, scrolling=True)
+                else:
+                    st.markdown(f"```text\n{report_content}\n```")
+
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            fname = f"url_{ts}.{ext}"
+            st.download_button(
+                f"🚀 Download as {ext.upper()}", 
+                report_content, 
+                file_name=fname, 
+                mime=mime,
+                key=f"dl_{id}" if id else "dl_active",
+                use_container_width=True
+            )

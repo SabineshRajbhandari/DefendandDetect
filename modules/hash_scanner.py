@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import hashlib
 from services.virustotal_service import VirusTotalService
 from services.groq_service import groq_service
@@ -17,22 +17,24 @@ def show_hash_scanner():
 
     from services.database_service import DatabaseService
 
-    # Check for restored history
+    # 1. Check for restored history
     if st.session_state.get("restored_result") and st.session_state.restored_result["type"] == "HASH":
         res = st.session_state.restored_result
         st.info(f"📜 Showing History from: {res['timestamp']}")
+        display_results(res['result'].get('vt_result', {}), res['result'].get('groq_result', {}), res['input'], is_history=True, id=res['id'])
         
-        st.text_input("File Hash", value=res['input'], disabled=True)
-        
-        result_data = res['result']
-        vt_result = result_data.get('vt_result', {})
-        groq_result = result_data.get('groq_result', {})
-        
-        display_results(vt_result, groq_result, res['input'])
-        
-        if st.button("Start New Scan"):
+        if st.button("Back to New Scan"):
              st.session_state.restored_result = None
              st.rerun()
+        return
+
+    # 2. Check for active (unsaved) recent result
+    if st.session_state.get("active_hash_result"):
+        res = st.session_state.active_hash_result
+        display_results(res['vt_result'], res['groq_result'], res['file_hash'])
+        if st.button("Start New Scan"):
+            st.session_state.active_hash_result = None
+            st.rerun()
         return
 
     uploaded_file = st.file_uploader("Upload a file to scan", type=None)
@@ -44,26 +46,40 @@ def show_hash_scanner():
         st.info(f"**SHA-256**: `{file_hash}`")
         
         if st.button("Query VirusTotal"):
+            # Set active state to empty initially to show spinner clearly
             with st.spinner("Analyzing security data..."):
                 # 1. VirusTotal Lookup
                 vt_result = VirusTotalService.check_file_hash(file_hash)
                 
-                # 2. AI Reasoning (Optional but good for education)
+                # 2. AI Reasoning
                 system_prompt = "You are a Malware Analysis Instructor. Explain the significance of the following file scan result."
                 user_prompt = f"The file with SHA-256 hash {file_hash} has these VirusTotal results: {vt_result}. Explain what this means in plain English."
                 
                 groq_result = groq_service.execute_prompt(user_prompt, system_prompt)
                 
-                # Save to History
                 full_result = {
                     "vt_result": vt_result,
                     "groq_result": groq_result
                 }
-                DatabaseService.save_scan("HASH", file_hash, full_result)
                 
-                display_results(vt_result, groq_result, file_hash)
+                # Save to History
+                DatabaseService.save_scan("HASH", file_hash, full_result)
 
-def display_results(vt_result, groq_result, file_hash):
+                # Save to active session
+                st.session_state.active_hash_result = {
+                    "file_hash": file_hash,
+                    "vt_result": vt_result,
+                    "groq_result": groq_result
+                }
+                st.rerun()
+
+def display_results(vt_result, groq_result, file_hash, is_history=False, id=None):
+    # Support both dict (from brief multi-hash phase) and string formats
+    if isinstance(file_hash, dict):
+        file_hash = file_hash.get("SHA-256", "Unknown")
+        
+    st.text_input("File Hash (SHA-256)", value=file_hash, disabled=True, key=f"hash_{id}" if id else "current_hash")
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -89,24 +105,52 @@ def display_results(vt_result, groq_result, file_hash):
                     st.write(groq_result["thought"])
             st.markdown(groq_result["content"])
 
-            # Report Download Options
             st.markdown("---")
-            st.subheader("📥 Export Final Analysis")
-            export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="hash_fmt")
-            
-            from services.report_service import ReportService
-            report_data = {"vt_result": vt_result, "groq_result": groq_result}
-            
-            if "Markdown" in export_format:
-                report_content = ReportService.generate_markdown_report("HASH", file_hash, report_data)
-                ext = "md"
-            elif "JSON" in export_format:
-                report_content = ReportService.generate_json_report("HASH", file_hash, report_data)
-                ext = "json"
-            else:
-                report_content = ReportService.generate_text_report("HASH", file_hash, report_data)
-                ext = "txt"
+            with st.popover("📥 Export Report"):
+                st.markdown("### 📤 Options")
+                export_format = st.pills(
+                    "Select Format", 
+                    ["Markdown (.md)", "JSON (.json)", "Text (.txt)", "CSV (.csv)", "HTML (.html)"], 
+                    selection_mode="single",
+                    default="Markdown (.md)",
+                    key=f"fmt_{id}" if id else "fmt_active"
+                )
+                
+                from datetime import datetime
+                report_data = {"vt_result": vt_result, "groq_result": groq_result}
+                
+                if "Markdown" in export_format:
+                    report_content = ReportService.generate_markdown_report("HASH", file_hash, report_data)
+                    ext, mime = "md", "text/markdown"
+                elif "JSON" in export_format:
+                    report_content = ReportService.generate_json_report("HASH", file_hash, report_data)
+                    ext, mime = "json", "application/json"
+                elif "CSV" in export_format:
+                    report_content = ReportService.generate_csv_report("HASH", file_hash, report_data)
+                    ext, mime = "csv", "text/csv"
+                elif "HTML" in export_format:
+                    report_content = ReportService.generate_html_report("HASH", file_hash, report_data)
+                    ext, mime = "html", "text/html"
+                else:
+                    report_content = ReportService.generate_text_report("HASH", file_hash, report_data)
+                    ext, mime = "txt", "text/plain"
 
-            st.download_button("📥 Finalize & Download", report_content, file_name=f"file_hash_report.{ext}")
-        else:
-            st.warning("AI Analysis Unavailable")
+                st.markdown("### 📝 Preview")
+                with st.container(height=500, border=True):
+                    if ext == "md":
+                        st.markdown(report_content)
+                    elif ext == "html":
+                        st.components.v1.html(report_content, height=600, scrolling=True)
+                    else:
+                        st.markdown(f"```text\n{report_content}\n```")
+
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                fname = f"hash_{ts}.{ext}"
+                st.download_button(
+                    f"🚀 Download as {ext.upper()}", 
+                    report_content, 
+                    file_name=fname, 
+                    mime=mime,
+                    key=f"dl_{id}" if id else "dl_active",
+                    use_container_width=True
+                )

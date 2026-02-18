@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 from services.groq_service import groq_service
 from prompts import PromptManager
 
@@ -16,42 +16,24 @@ def show_log_module():
 
     from services.database_service import DatabaseService
 
-    # Check for restored history
+    # 1. Check for restored history
     if st.session_state.get("restored_result") and st.session_state.restored_result["type"] == "LOG":
         res = st.session_state.restored_result
         st.info(f"📜 Showing History from: {res['timestamp']}")
+        display_log_results(res['input'], res['result'], is_history=True, id=res['id'])
         
-        st.text_area("Log Entry", value=res['input'], height=150, disabled=True)
-        
-        result_data = res['result']
-        if result_data.get("status") == "success":
-             if result_data.get("thought"):
-                 with st.expander("🧠 AI Thinking Process"):
-                     st.write(result_data["thought"])
-             
-             st.markdown("### 📊 Log Analysis")
-             st.markdown(result_data["content"])
-             
-             st.markdown("---")
-             st.subheader("📥 Export Historical Report")
-             export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="log_hist_fmt")
-             
-             from services.report_service import ReportService
-             if "Markdown" in export_format:
-                 report_content = ReportService.generate_markdown_report("LOG", res['input'], result_data)
-                 ext = "md"
-             elif "JSON" in export_format:
-                 report_content = ReportService.generate_json_report("LOG", res['input'], result_data)
-                 ext = "json"
-             else:
-                 report_content = ReportService.generate_text_report("LOG", res['input'], result_data)
-                 ext = "txt"
-
-             st.download_button("📥 Finalize & Download Historical", report_content, file_name=f"log_report_{res['id']}.{ext}")
-        
-        if st.button("Start New Translation"):
+        if st.button("Back to New Scan"):
              st.session_state.restored_result = None
              st.rerun()
+        return
+
+    # 2. Check for active (unsaved) recent result
+    if st.session_state.get("active_log_result"):
+        res = st.session_state.active_log_result
+        display_log_results(res['log_entry'], res['result'])
+        if st.button("Start New Translation"):
+            st.session_state.active_log_result = None
+            st.rerun()
         return
 
     log_entry = st.text_area("Paste Log Entry", height=150, placeholder="Example: Feb 7 10:00:01 server sshd[1234]: Failed password for invalid user admin from 192.168.1.100 port 5000 ssh2")
@@ -68,29 +50,76 @@ def show_log_module():
             result = groq_service.execute_prompt(user_prompt, system_prompt)
             
             if result["status"] == "success":
+                st.success("Translation Complete")
+                
                 # Save to History
                 DatabaseService.save_scan("LOG", log_entry[:100], result)
 
-                st.success("Translation Complete")
-                st.markdown("### 📊 Log Analysis")
-                st.markdown(result["content"])
-
-                # Report Download Options
-                st.markdown("---")
-                st.subheader("📥 Export Final Analysis")
-                export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="log_fmt")
-                
-                from services.report_service import ReportService
-                if "Markdown" in export_format:
-                    report_content = ReportService.generate_markdown_report("LOG", log_entry, result)
-                    ext = "md"
-                elif "JSON" in export_format:
-                    report_content = ReportService.generate_json_report("LOG", log_entry, result)
-                    ext = "json"
-                else:
-                    report_content = ReportService.generate_text_report("LOG", log_entry, result)
-                    ext = "txt"
-
-                st.download_button("📥 Finalize & Download", report_content, file_name=f"log_report.{ext}")
+                # Save to active session
+                st.session_state.active_log_result = {
+                    "log_entry": log_entry,
+                    "result": result
+                }
+                st.rerun()
             else:
                 st.error(f"Translation Failed: {result['error']}")
+
+def display_log_results(log_entry, result_data, is_history=False, id=None):
+    st.text_area("Log Entry", value=log_entry, height=150, disabled=True, key=f"log_{id}" if id else "current_log")
+    
+    if result_data.get("status") == "success":
+        if result_data.get("thought"):
+            with st.expander("🧠 AI Thinking Process"):
+                st.write(result_data["thought"])
+        
+        st.markdown("### 📊 Log Analysis")
+        st.markdown(result_data["content"])
+
+        st.markdown("---")
+        with st.popover("📥 Export Report"):
+            st.markdown("### 📤 Options")
+            export_format = st.pills(
+                "Select Format", 
+                ["Markdown (.md)", "JSON (.json)", "Text (.txt)", "CSV (.csv)", "HTML (.html)"], 
+                selection_mode="single",
+                default="Markdown (.md)",
+                key=f"fmt_{id}" if id else "fmt_active"
+            )
+            
+            from datetime import datetime
+            
+            if "Markdown" in export_format:
+                report_content = ReportService.generate_markdown_report("LOG", log_entry, result_data)
+                ext, mime = "md", "text/markdown"
+            elif "JSON" in export_format:
+                report_content = ReportService.generate_json_report("LOG", log_entry, result_data)
+                ext, mime = "json", "application/json"
+            elif "CSV" in export_format:
+                report_content = ReportService.generate_csv_report("LOG", log_entry, result_data)
+                ext, mime = "csv", "text/csv"
+            elif "HTML" in export_format:
+                report_content = ReportService.generate_html_report("LOG", log_entry, result_data)
+                ext, mime = "html", "text/html"
+            else:
+                report_content = ReportService.generate_text_report("LOG", log_entry, result_data)
+                ext, mime = "txt", "text/plain"
+
+            st.markdown("### 📝 Preview")
+            with st.container(height=500, border=True):
+                if ext == "md":
+                    st.markdown(report_content)
+                elif ext == "html":
+                    st.components.v1.html(report_content, height=600, scrolling=True)
+                else:
+                    st.markdown(f"```text\n{report_content}\n```")
+
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            fname = f"log_{ts}.{ext}"
+            st.download_button(
+                f"🚀 Download as {ext.upper()}", 
+                report_content, 
+                file_name=fname, 
+                mime=mime,
+                key=f"dl_{id}" if id else "dl_active",
+                use_container_width=True
+            )
