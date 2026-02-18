@@ -17,15 +17,42 @@ if "history" not in st.session_state:
     st.session_state.history = []
 if "restored_result" not in st.session_state:
     st.session_state.restored_result = None
+if "theme" not in st.session_state:
+    st.session_state.theme = "Hacker"
 
 # Initialize Database
 DatabaseService.init_db()
 
 def load_css():
     with open("style.css") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+        css = f.read()
+        if st.session_state.theme == "Professional":
+            # Simple hack to apply theme - inject a div that wraps everything or just inject the class to stApp
+            # Streamlit doesn't allow direct body class manipulation easily, so we can override variables in a <style> block
+            st.markdown("""
+            <style>
+            :root {
+                --bg-color: #f8fafc;
+                --bg-pattern: none;
+                --sidebar-bg: #ffffff;
+                --text-primary: #1e293b;
+                --text-secondary: #475569;
+                --accent-primary: #2563eb;
+                --accent-secondary: #4f46e5;
+                --border-color: #e2e8f0;
+                --card-bg: #ffffff;
+                --input-bg: #f1f5f9;
+                --header-gradient: linear-gradient(45deg, #1e293b, #334155);
+            }
+            .stButton button[kind="primary"] {
+                color: #ffffff !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 def main():
+    load_css()
     st.title(f"🛡️ {Config.APP_NAME}")
     st.markdown("### AI-Powered Cybersecurity Education Platform")
     
@@ -42,6 +69,7 @@ def main():
         "Home": "🏠 DASHBOARD",
         "Phishing Detector": "📧 PHISHING DETECTOR",
         "URL Analyzer": "🔗 URL ANALYZER",
+        "File Hash Scanner": "🔍 HASH SCANNER",
         "CVE Explainer": "🛡️ CVE EXPLAINER",
         "Log Translator": "📝 LOG TRANSLATOR"
     }
@@ -56,6 +84,16 @@ def main():
             st.session_state.restored_result = None # Clear restored result on nav
             st.query_params["page"] = page_name  # Save to URL
             st.rerun() # Force reload to update UI immediately
+    
+    st.sidebar.markdown("---")
+
+    # Theme Switcher
+    with st.sidebar:
+        st.subheader("🎨 Appearance")
+        new_theme = st.toggle("Professional Mode", value=(st.session_state.theme == "Professional"))
+        if new_theme != (st.session_state.theme == "Professional"):
+            st.session_state.theme = "Professional" if new_theme else "Hacker"
+            st.rerun()
     
     st.sidebar.markdown("---")
     
@@ -73,6 +111,7 @@ def main():
                     page_map = {
                         "PHISHING": "Phishing Detector",
                         "URL": "URL Analyzer",
+                        "HASH": "File Hash Scanner",
                         "CVE": "CVE Explainer",
                         "LOG": "Log Translator"
                     }
@@ -84,6 +123,20 @@ def main():
             if st.button("🗑️ Clear History"):
                 DatabaseService.clear_history()
                 st.rerun()
+            
+            # Export History
+            import pandas as pd
+            if recent_scans:
+                df = pd.DataFrame(recent_scans)
+                # Remove 'result' if it's too big, or keep it for full export
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="📤 Export History to CSV",
+                    data=csv,
+                    file_name="security_scan_history.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
 
     st.sidebar.markdown("---")
     
@@ -109,6 +162,9 @@ def main():
     elif module == "URL Analyzer":
         from modules.url_analyzer import show_url_module
         show_url_module()
+    elif module == "File Hash Scanner":
+        from modules.hash_scanner import show_hash_scanner
+        show_hash_scanner()
     elif module == "CVE Explainer":
         from modules.cve_explainer import show_cve_module
         show_cve_module()

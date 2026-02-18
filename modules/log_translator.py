@@ -14,6 +14,34 @@ def show_log_module():
         - Actionable Next Steps
         """)
 
+    from services.database_service import DatabaseService
+
+    # Check for restored history
+    if st.session_state.get("restored_result") and st.session_state.restored_result["type"] == "LOG":
+        res = st.session_state.restored_result
+        st.info(f"📜 Showing History from: {res['timestamp']}")
+        
+        st.text_area("Log Entry", value=res['input'], height=150, disabled=True)
+        
+        result_data = res['result']
+        if result_data.get("status") == "success":
+             if result_data.get("thought"):
+                 with st.expander("🧠 AI Thinking Process"):
+                     st.write(result_data["thought"])
+             
+             st.markdown("### 📊 Log Analysis")
+             st.markdown(result_data["content"])
+             
+             # Report Download
+             from services.report_service import ReportService
+             report_md = ReportService.generate_markdown_report("LOG", res['input'], result_data)
+             st.download_button("📥 Download Analysis Report", report_md, file_name=f"log_report_{res['id']}.md")
+        
+        if st.button("Start New Translation"):
+             st.session_state.restored_result = None
+             st.rerun()
+        return
+
     log_entry = st.text_area("Paste Log Entry", height=150, placeholder="Example: Feb 7 10:00:01 server sshd[1234]: Failed password for invalid user admin from 192.168.1.100 port 5000 ssh2")
 
     if st.button("Translate Log"):
@@ -28,8 +56,16 @@ def show_log_module():
             result = groq_service.execute_prompt(user_prompt, system_prompt)
             
             if result["status"] == "success":
+                # Save to History
+                DatabaseService.save_scan("LOG", log_entry[:100], result)
+
                 st.success("Translation Complete")
                 st.markdown("### 📊 Log Analysis")
                 st.markdown(result["content"])
+
+                # Report Download
+                from services.report_service import ReportService
+                report_md = ReportService.generate_markdown_report("LOG", log_entry, result)
+                st.download_button("📥 Download Analysis Report", report_md, file_name="log_report.md")
             else:
                 st.error(f"Translation Failed: {result['error']}")

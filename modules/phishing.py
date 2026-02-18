@@ -35,8 +35,17 @@ def show_phishing_module():
              st.info(f"Probabilistic Model: **{hf_result['label']}** ({hf_result['score']:.1%})")
         
         if groq_result.get("status") == "success":
+             if groq_result.get("thought"):
+                 with st.expander("🧠 AI Thinking Process"):
+                     st.write(groq_result["thought"])
+             
              st.markdown("### 🛡️ Threat Report")
              st.markdown(groq_result["content"])
+             
+             # Report Download
+             from services.report_service import ReportService
+             report_md = ReportService.generate_markdown_report("PHISHING", res['input'], result_data)
+             st.download_button("📥 Download Analysis Report", report_md, file_name=f"phishing_report_{res['id']}.md")
         
         if st.button("Start New Scan"):
              st.session_state.restored_result = None
@@ -81,5 +90,10 @@ def show_phishing_module():
                 st.success("Analysis Complete")
                 st.markdown("### 🛡️ Threat Report")
                 st.markdown(result["content"])
+
+                # Report Download
+                from services.report_service import ReportService
+                report_md = ReportService.generate_markdown_report("PHISHING", email_body, full_result)
+                st.download_button("📥 Download Analysis Report", report_md, file_name="phishing_report.md")
             else:
                 st.error(f"Analysis Failed: {result['error']}")

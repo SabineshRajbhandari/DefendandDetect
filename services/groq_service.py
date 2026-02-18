@@ -92,9 +92,20 @@ class GroqService:
             elapsed_time = time.time() - start_time
             logger.info(f"GROQ Request completed in {elapsed_time:.2f}s")
 
+            import re
+            content = chat_completion.choices[0].message.content
+            thought = ""
+            
+            # Extract thought if present
+            thought_match = re.search(r"<thought>(.*?)</thought>", content, re.DOTALL)
+            if thought_match:
+                thought = thought_match.group(1).strip()
+                content = re.sub(r"<thought>.*?</thought>", "", content, flags=re.DOTALL).strip()
+            
             return {
                 "status": "success",
-                "content": chat_completion.choices[0].message.content,
+                "content": content,
+                "thought": thought,
                 "model": chat_completion.model,
                 "latency_ms": int(elapsed_time * 1000)
             }

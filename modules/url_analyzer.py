@@ -48,6 +48,11 @@ def show_url_module():
         if final_analysis.get("status") == "success":
              st.markdown(final_analysis["content"])
              
+             # Report Download
+             from services.report_service import ReportService
+             report_md = ReportService.generate_markdown_report("URL", res['input'], result_data)
+             st.download_button("📥 Download Analysis Report", report_md, file_name=f"url_report_{res['id']}.md")
+             
         if st.button("Start New Scan"):
              st.session_state.restored_result = None
              st.rerun()
@@ -100,6 +105,10 @@ def show_url_module():
 
             st.markdown("### 🧠 Synthesis")
             if final_analysis["status"] == "success":
+                if final_analysis.get("thought"):
+                    with st.expander("🧠 AI Thinking Process"):
+                        st.write(final_analysis["thought"])
+                
                 # Save to History
                 full_result = {
                     "vt_result": vt_result,
@@ -109,5 +118,10 @@ def show_url_module():
                 DatabaseService.save_scan("URL", url_input, full_result)
                 
                 st.markdown(final_analysis["content"])
+
+                # Report Download
+                from services.report_service import ReportService
+                report_md = ReportService.generate_markdown_report("URL", url_input, full_result)
+                st.download_button("📥 Download Analysis Report", report_md, file_name="url_report.md")
             else:
                 st.error("Synthesis failed.")

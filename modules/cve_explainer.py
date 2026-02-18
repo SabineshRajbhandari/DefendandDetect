@@ -14,6 +14,42 @@ def show_cve_module():
         - Mitigation strategies
         """)
 
+    from services.database_service import DatabaseService
+
+    # Check for restored history
+    if st.session_state.get("restored_result") and st.session_state.restored_result["type"] == "CVE":
+        res = st.session_state.restored_result
+        st.info(f"📜 Showing History from: {res['timestamp']}")
+        
+        st.text_input("CVE ID", value=res['input'], disabled=True)
+        
+        result_data = res['result']
+        nvd_result = result_data.get("nvd_result", {})
+        groq_result = result_data.get("groq_result", {})
+
+        if nvd_result.get("status") == "success":
+            st.info(f"**Official Data Found**: {nvd_result['id']} (Severity: {nvd_result['severity']} - {nvd_result['score']})")
+            with st.expander("Show Official Description"):
+                st.write(nvd_result['description'])
+        
+        if groq_result.get("status") == "success":
+            if groq_result.get("thought"):
+                with st.expander("🧠 AI Thinking Process"):
+                    st.write(groq_result["thought"])
+            
+            st.markdown("### 📖 Vulnerability Insight")
+            st.markdown(groq_result["content"])
+
+            # Report Download
+            from services.report_service import ReportService
+            report_md = ReportService.generate_markdown_report("CVE", res['input'], result_data)
+            st.download_button("📥 Download Analysis Report", report_md, file_name=f"cve_report_{res['id']}.md")
+
+        if st.button("Start New Explanation"):
+             st.session_state.restored_result = None
+             st.rerun()
+        return
+
     cve_id = st.text_input("CVE ID", placeholder="CVE-2021-44228")
 
     if st.button("Explain Vulnerability"):
@@ -40,8 +76,20 @@ def show_cve_module():
             result = groq_service.execute_prompt(user_prompt, system_prompt)
             
             if result["status"] == "success":
+                # Save to History
+                full_result = {
+                    "nvd_result": nvd_result,
+                    "groq_result": result
+                }
+                DatabaseService.save_scan("CVE", cve_id, full_result)
+
                 st.success("Explanation Generated")
                 st.markdown("### 📖 Vulnerability Insight")
                 st.markdown(result["content"])
+
+                # Report Download
+                from services.report_service import ReportService
+                report_md = ReportService.generate_markdown_report("CVE", cve_id, full_result)
+                st.download_button("📥 Download Analysis Report", report_md, file_name="cve_report.md")
             else:
                 st.error(f"Explanation Failed: {result['error']}")
