@@ -31,7 +31,11 @@ class ReportService:
             final = result_data.get("final_analysis", {})
             report += "## Threat Intelligence Highlights\n"
             if vt.get("status") == "success":
-                report += f"- **VirusTotal**: {vt['stats'].get('malicious', 0)} malicious flags\n"
+                stats = vt.get("stats", {})
+                malicious = stats.get("malicious", 0)
+                report += f"- **VirusTotal**: {malicious} malicious flags\n"
+                if "message" in vt:
+                    report += f"  - Status: {vt['message']}\n"
             if hf.get("status") == "success":
                 report += f"- **Structural Analysis**: {hf['label']} ({hf['score']:.1%})\n"
             if final.get("status") == "success":
@@ -44,7 +48,11 @@ class ReportService:
             groq = result_data.get("groq_result", {})
             report += "## Fingerprint Analysis\n"
             if vt.get("status") == "success":
-                report += f"- **VirusTotal**: {vt['stats'].get('malicious', 0)} engines detected malware\n"
+                stats = vt.get("stats", {})
+                malicious = stats.get("malicious", 0)
+                report += f"- **VirusTotal**: {malicious} engines detected malware\n"
+                if "message" in vt:
+                    report += f"  - Status: {vt['message']}\n"
             if groq.get("status") == "success":
                 report += f"\n### AI Interpretation\n{groq['content']}\n"
                 if groq.get("thought"):
