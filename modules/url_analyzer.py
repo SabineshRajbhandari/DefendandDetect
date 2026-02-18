@@ -44,14 +44,26 @@ def show_url_module():
                 st.markdown(f"**Prediction:** :{color}[{label}]")
                 st.progress(score, text=f"Confidence: {score:.2%}")
         
-        st.markdown("### 🧠 Synthesis")
-        if final_analysis.get("status") == "success":
-             st.markdown(final_analysis["content"])
-             
-             # Report Download
-             from services.report_service import ReportService
-             report_md = ReportService.generate_markdown_report("URL", res['input'], result_data)
-             st.download_button("📥 Download Analysis Report", report_md, file_name=f"url_report_{res['id']}.md")
+             st.markdown("### 🧠 Synthesis")
+             if final_analysis.get("status") == "success":
+                  st.markdown(final_analysis["content"])
+                  
+                  st.markdown("---")
+                  st.subheader("📥 Export Historical Report")
+                  export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="url_hist_fmt")
+                  
+                  from services.report_service import ReportService
+                  if "Markdown" in export_format:
+                      report_content = ReportService.generate_markdown_report("URL", res['input'], result_data)
+                      ext = "md"
+                  elif "JSON" in export_format:
+                      report_content = ReportService.generate_json_report("URL", res['input'], result_data)
+                      ext = "json"
+                  else:
+                      report_content = ReportService.generate_text_report("URL", res['input'], result_data)
+                      ext = "txt"
+
+                  st.download_button("📥 Finalize & Download Historical", report_content, file_name=f"url_hist_{res['id']}.{ext}")
              
         if st.button("Start New Scan"):
              st.session_state.restored_result = None
@@ -65,7 +77,7 @@ def show_url_module():
             st.error("Invalid URL format. Please include http:// or https://")
             return
 
-        with st.spinner("Scanning global threat databases..."):
+        with st.spinner("Analyzing security data..."):
             # 1. VirusTotal Check
             vt_result = VirusTotalService.check_url(url_input)
             
@@ -119,9 +131,22 @@ def show_url_module():
                 
                 st.markdown(final_analysis["content"])
 
-                # Report Download
+                # Report Download Options
+                st.markdown("---")
+                st.subheader("📥 Export Final Analysis")
+                export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="url_fmt")
+                
                 from services.report_service import ReportService
-                report_md = ReportService.generate_markdown_report("URL", url_input, full_result)
-                st.download_button("📥 Download Analysis Report", report_md, file_name="url_report.md")
+                if "Markdown" in export_format:
+                    report_content = ReportService.generate_markdown_report("URL", url_input, full_result)
+                    ext = "md"
+                elif "JSON" in export_format:
+                    report_content = ReportService.generate_json_report("URL", url_input, full_result)
+                    ext = "json"
+                else:
+                    report_content = ReportService.generate_text_report("URL", url_input, full_result)
+                    ext = "txt"
+
+                st.download_button("📥 Finalize & Download", report_content, file_name=f"url_report.{ext}")
             else:
                 st.error("Synthesis failed.")

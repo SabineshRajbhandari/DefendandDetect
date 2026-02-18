@@ -40,10 +40,22 @@ def show_cve_module():
             st.markdown("### 📖 Vulnerability Insight")
             st.markdown(groq_result["content"])
 
-            # Report Download
+            st.markdown("---")
+            st.subheader("📥 Export Historical Report")
+            export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="cve_hist_fmt")
+            
             from services.report_service import ReportService
-            report_md = ReportService.generate_markdown_report("CVE", res['input'], result_data)
-            st.download_button("📥 Download Analysis Report", report_md, file_name=f"cve_report_{res['id']}.md")
+            if "Markdown" in export_format:
+                report_content = ReportService.generate_markdown_report("CVE", res['input'], result_data)
+                ext = "md"
+            elif "JSON" in export_format:
+                report_content = ReportService.generate_json_report("CVE", res['input'], result_data)
+                ext = "json"
+            else:
+                report_content = ReportService.generate_text_report("CVE", res['input'], result_data)
+                ext = "txt"
+
+            st.download_button("📥 Finalize & Download Historical", report_content, file_name=f"cve_hist_{res['id']}.{ext}")
 
         if st.button("Start New Explanation"):
              st.session_state.restored_result = None
@@ -57,7 +69,7 @@ def show_cve_module():
             st.warning("Please enter a CVE ID.")
             return
 
-        with st.spinner("Fetching official NVD data..."):
+        with st.spinner("Analyzing security data..."):
             # 1. Fetch NVD Data
             from services.nvd_service import nvd_service
             nvd_result = nvd_service.fetch_cve(cve_id)
@@ -87,9 +99,22 @@ def show_cve_module():
                 st.markdown("### 📖 Vulnerability Insight")
                 st.markdown(result["content"])
 
-                # Report Download
+                # Report Download Options
+                st.markdown("---")
+                st.subheader("📥 Export Final Analysis")
+                export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="cve_fmt")
+                
                 from services.report_service import ReportService
-                report_md = ReportService.generate_markdown_report("CVE", cve_id, full_result)
-                st.download_button("📥 Download Analysis Report", report_md, file_name="cve_report.md")
+                if "Markdown" in export_format:
+                    report_content = ReportService.generate_markdown_report("CVE", cve_id, full_result)
+                    ext = "md"
+                elif "JSON" in export_format:
+                    report_content = ReportService.generate_json_report("CVE", cve_id, full_result)
+                    ext = "json"
+                else:
+                    report_content = ReportService.generate_text_report("CVE", cve_id, full_result)
+                    ext = "txt"
+
+                st.download_button("📥 Finalize & Download", report_content, file_name=f"cve_report.{ext}")
             else:
                 st.error(f"Explanation Failed: {result['error']}")

@@ -42,10 +42,22 @@ def show_phishing_module():
              st.markdown("### 🛡️ Threat Report")
              st.markdown(groq_result["content"])
              
-             # Report Download
+             st.markdown("---")
+             st.subheader("📥 Export Historical Report")
+             export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="phish_hist_fmt")
+             
              from services.report_service import ReportService
-             report_md = ReportService.generate_markdown_report("PHISHING", res['input'], result_data)
-             st.download_button("📥 Download Analysis Report", report_md, file_name=f"phishing_report_{res['id']}.md")
+             if "Markdown" in export_format:
+                 report_content = ReportService.generate_markdown_report("PHISHING", res['input'], result_data)
+                 ext = "md"
+             elif "JSON" in export_format:
+                 report_content = ReportService.generate_json_report("PHISHING", res['input'], result_data)
+                 ext = "json"
+             else:
+                 report_content = ReportService.generate_text_report("PHISHING", res['input'], result_data)
+                 ext = "txt"
+
+             st.download_button("📥 Finalize & Download Historical", report_content, file_name=f"phishing_hist_{res['id']}.{ext}")
         
         if st.button("Start New Scan"):
              st.session_state.restored_result = None
@@ -60,7 +72,7 @@ def show_phishing_module():
             st.warning("Please enter the email body.")
             return
 
-        with st.spinner("Running hybrid analysis (Hugging Face + GROQ)..."):
+        with st.spinner("Analyzing security data..."):
             # 1. Hugging Face Classification
             from services.huggingface_service import hf_service
             hf_result = hf_service.classify_phishing(email_body[:512]) # Truncate for BERT models often limited to 512 tokens
@@ -91,9 +103,22 @@ def show_phishing_module():
                 st.markdown("### 🛡️ Threat Report")
                 st.markdown(result["content"])
 
-                # Report Download
+                # Report Download Options
+                st.markdown("---")
+                st.subheader("📥 Export Final Analysis")
+                export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="phish_fmt")
+                
                 from services.report_service import ReportService
-                report_md = ReportService.generate_markdown_report("PHISHING", email_body, full_result)
-                st.download_button("📥 Download Analysis Report", report_md, file_name="phishing_report.md")
+                if "Markdown" in export_format:
+                    report_content = ReportService.generate_markdown_report("PHISHING", email_body, full_result)
+                    ext = "md"
+                elif "JSON" in export_format:
+                    report_content = ReportService.generate_json_report("PHISHING", email_body, full_result)
+                    ext = "json"
+                else:
+                    report_content = ReportService.generate_text_report("PHISHING", email_body, full_result)
+                    ext = "txt"
+
+                st.download_button("📥 Finalize & Download", report_content, file_name=f"phishing_report.{ext}")
             else:
                 st.error(f"Analysis Failed: {result['error']}")

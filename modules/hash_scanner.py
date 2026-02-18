@@ -28,7 +28,7 @@ def show_hash_scanner():
         vt_result = result_data.get('vt_result', {})
         groq_result = result_data.get('groq_result', {})
         
-        display_results(vt_result, groq_result)
+        display_results(vt_result, groq_result, res['input'])
         
         if st.button("Start New Scan"):
              st.session_state.restored_result = None
@@ -44,12 +44,11 @@ def show_hash_scanner():
         st.info(f"**SHA-256**: `{file_hash}`")
         
         if st.button("Query VirusTotal"):
-            with st.spinner("Searching threat databases..."):
+            with st.spinner("Analyzing security data..."):
                 # 1. VirusTotal Lookup
                 vt_result = VirusTotalService.check_file_hash(file_hash)
                 
                 # 2. AI Reasoning (Optional but good for education)
-                # We'll adapt a general prompt for hashes
                 system_prompt = "You are a Malware Analysis Instructor. Explain the significance of the following file scan result."
                 user_prompt = f"The file with SHA-256 hash {file_hash} has these VirusTotal results: {vt_result}. Explain what this means in plain English."
                 
@@ -62,9 +61,9 @@ def show_hash_scanner():
                 }
                 DatabaseService.save_scan("HASH", file_hash, full_result)
                 
-                display_results(vt_result, groq_result)
+                display_results(vt_result, groq_result, file_hash)
 
-def display_results(vt_result, groq_result):
+def display_results(vt_result, groq_result, file_hash):
     col1, col2 = st.columns(2)
     
     with col1:
@@ -90,12 +89,24 @@ def display_results(vt_result, groq_result):
                     st.write(groq_result["thought"])
             st.markdown(groq_result["content"])
 
-            # Report Download
+            # Report Download Options
+            st.markdown("---")
+            st.subheader("📥 Export Final Analysis")
+            export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="hash_fmt")
+            
             from services.report_service import ReportService
-            # We don't have easy access to the exact 'input' directly here without passing it, 
-            # but we can try to get it from state if possible or just pass it in.
-            # For simplicity, let's assume we pass full_result or just use the current data.
-            report_md = ReportService.generate_markdown_report("HASH", "File Scan", {"vt_result": vt_result, "groq_result": groq_result})
-            st.download_button("📥 Download Analysis Report", report_md, file_name="file_hash_report.md")
+            report_data = {"vt_result": vt_result, "groq_result": groq_result}
+            
+            if "Markdown" in export_format:
+                report_content = ReportService.generate_markdown_report("HASH", file_hash, report_data)
+                ext = "md"
+            elif "JSON" in export_format:
+                report_content = ReportService.generate_json_report("HASH", file_hash, report_data)
+                ext = "json"
+            else:
+                report_content = ReportService.generate_text_report("HASH", file_hash, report_data)
+                ext = "txt"
+
+            st.download_button("📥 Finalize & Download", report_content, file_name=f"file_hash_report.{ext}")
         else:
             st.warning("AI Analysis Unavailable")

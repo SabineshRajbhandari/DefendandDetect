@@ -32,10 +32,22 @@ def show_log_module():
              st.markdown("### 📊 Log Analysis")
              st.markdown(result_data["content"])
              
-             # Report Download
+             st.markdown("---")
+             st.subheader("📥 Export Historical Report")
+             export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="log_hist_fmt")
+             
              from services.report_service import ReportService
-             report_md = ReportService.generate_markdown_report("LOG", res['input'], result_data)
-             st.download_button("📥 Download Analysis Report", report_md, file_name=f"log_report_{res['id']}.md")
+             if "Markdown" in export_format:
+                 report_content = ReportService.generate_markdown_report("LOG", res['input'], result_data)
+                 ext = "md"
+             elif "JSON" in export_format:
+                 report_content = ReportService.generate_json_report("LOG", res['input'], result_data)
+                 ext = "json"
+             else:
+                 report_content = ReportService.generate_text_report("LOG", res['input'], result_data)
+                 ext = "txt"
+
+             st.download_button("📥 Finalize & Download Historical", report_content, file_name=f"log_report_{res['id']}.{ext}")
         
         if st.button("Start New Translation"):
              st.session_state.restored_result = None
@@ -49,7 +61,7 @@ def show_log_module():
             st.warning("Please enter a log entry.")
             return
 
-        with st.spinner("Decoding log syntax..."):
+        with st.spinner("Analyzing security data..."):
             user_prompt = PromptManager.format_log_prompt(log_entry)
             system_prompt = PromptManager.get_system_prompt("logs")
             
@@ -63,9 +75,22 @@ def show_log_module():
                 st.markdown("### 📊 Log Analysis")
                 st.markdown(result["content"])
 
-                # Report Download
+                # Report Download Options
+                st.markdown("---")
+                st.subheader("📥 Export Final Analysis")
+                export_format = st.radio("Select Format", ["Markdown (.md)", "JSON (.json)", "Text (.txt)"], horizontal=True, key="log_fmt")
+                
                 from services.report_service import ReportService
-                report_md = ReportService.generate_markdown_report("LOG", log_entry, result)
-                st.download_button("📥 Download Analysis Report", report_md, file_name="log_report.md")
+                if "Markdown" in export_format:
+                    report_content = ReportService.generate_markdown_report("LOG", log_entry, result)
+                    ext = "md"
+                elif "JSON" in export_format:
+                    report_content = ReportService.generate_json_report("LOG", log_entry, result)
+                    ext = "json"
+                else:
+                    report_content = ReportService.generate_text_report("LOG", log_entry, result)
+                    ext = "txt"
+
+                st.download_button("📥 Finalize & Download", report_content, file_name=f"log_report.{ext}")
             else:
                 st.error(f"Translation Failed: {result['error']}")
