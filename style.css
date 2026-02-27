@@ -248,3 +248,51 @@ hr {
     padding: 0 2px;
     border-radius: 2px;
 }
+
+/* ==========================================
+   MOBILE OPTIMIZATION (iOS & Android)
+   ========================================== */
+@media (max-width: 768px) {
+    /* Refine spacing for small viewports */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Increase Tap Targets for touch */
+    .stButton button {
+        padding: 0.6rem 1rem !important;
+        min-height: 48px !important; /* Standard touch target size */
+        font-size: 0.95rem !important;
+    }
+
+    /* Compact UI elements */
+    h1 { font-size: 1.8rem !important; }
+    h2 { font-size: 1.5rem !important; }
+    h3 { font-size: 1.2rem !important; }
+
+    /* Adjust Diff Container for readability */
+    .diff-container {
+        padding: 0.75rem !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Fix table overflow */
+    .stTable {
+        font-size: 0.8rem !important;
+        display: block;
+        overflow-x: auto;
+    }
+
+    /* Reduce scanline opacity on mobile for clarity */
+    .scanlines {
+        opacity: 0.08;
+    }
+
+    /* Simplify sidebar on mobile */
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+        gap: 0.5rem !important;
+    }
+}

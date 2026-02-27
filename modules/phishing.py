@@ -42,7 +42,7 @@ def show_phishing_module():
         # 🔍 Visual Skeleton Loading State
         placeholder = st.empty()
         with placeholder.container():
-            st.markdown('<div class="scanning-bar"></div>', unsafe_allow_allow_html=True)
+            st.markdown('<div class="scanning-bar"></div>', unsafe_allow_html=True)
             st.markdown('<div class="skeleton-box" style="height: 100px;"></div>', unsafe_allow_html=True)
             st.markdown('<div class="skeleton-box" style="height: 300px;"></div>', unsafe_allow_html=True)
             st.info("🧠 **AI Reasoning in Progress...** Deconstructing email headers and social engineering tactics.")
