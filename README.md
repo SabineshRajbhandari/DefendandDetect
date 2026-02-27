@@ -54,9 +54,14 @@
 - **YARA Signature Matching**: Scans for known malicious patterns using local rulesets.
 - **Redirect Chain Analysis**: Traces the full path of malicious short-links.
 
-### 8. 📜 Local Persistence
+### 9. 📜 Local Persistence
 - **SQLite Backend**: Automatically saves all scan results to `history.db`.
 - **Privacy Focused**: All data remains local to your environment.
+
+### 10. 📱 Mobile Intelligence Optimization (v1.6.0)
+- **Responsive Stacking**: Automated vertical layout for small screens to prevent horizontal scrolling.
+- **Auto-Hide Navigation**: Intelligent sidebar that collapses automatically after selection on mobile devices.
+- **Touch Ergonomics**: Optimized tap targets (48px) and refined spacing for seamless iOS/Android browsing.
 
 ---
 

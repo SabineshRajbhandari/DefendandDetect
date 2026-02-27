@@ -90,7 +90,7 @@ class Config:
     # Application Settings
     # -------------------------------------------------------------------------
     APP_NAME = "Defend & Detect"
-    VERSION = "1.5.0"
+    VERSION = "1.6.0"
     
     # Retry settings
     MAX_RETRIES = 3

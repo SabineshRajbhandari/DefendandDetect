@@ -23,12 +23,30 @@ DatabaseService.init_db()
 def load_css():
     with open("style.css") as f:
         css = f.read()
-        
-    # Inject static dark theme overrides if needed, 
-    # but ideally style.css should now be standard dark.
-    # We maintain scanlines as requested.
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
     st.markdown('<div class="scanlines"></div>', unsafe_allow_html=True)
+
+def auto_collapse_sidebar():
+    """
+    Injects JS to automatically collapse the sidebar on mobile devices
+    after a navigation event.
+    """
+    js = """
+    <script>
+    // Detect if we are on mobile/tablet
+    if (window.innerWidth < 768) {
+        // Find the sidebar collapse button by its data-testid or aria-label
+        var buttons = window.parent.document.getElementsByTagName('button');
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].getAttribute('aria-label') === "Close sidebar") {
+                buttons[i].click();
+                break;
+            }
+        }
+    }
+    </script>
+    """
+    st.components.v1.html(js, height=0, width=0)
 
 def main():
     load_css()
@@ -94,6 +112,9 @@ def main():
 
     # Routing
     module = st.session_state.page
+    
+    # Auto-collapse sidebar on mobile after navigation
+    auto_collapse_sidebar()
     
     if module == "Home":
         show_home()
