@@ -11,30 +11,58 @@
     --card-bg: #161b22;
     --input-bg: #161b22;
     --header-gradient: linear-gradient(45deg, #00f2ff, #bc13fe);
+    --placeholder-color: rgba(230, 237, 243, 0.4);
+    --btn-shadow: rgba(0, 242, 255, 0.2);
 }
 
-/* Professional Theme Overrides (Applied via parent class if possible or injected) */
-.prof-theme {
-    --bg-color: #f8fafc;
-    --bg-pattern: none;
-    --sidebar-bg: #ffffff;
-    --text-primary: #1e293b;
-    --text-secondary: #475569;
-    --accent-primary: #2563eb;
-    --accent-secondary: #4f46e5;
-    --border-color: #e2e8f0;
-    --card-bg: #ffffff;
-    --input-bg: #f1f5f9;
-    --header-gradient: linear-gradient(45deg, #1e293b, #334155);
-}
+
 
 .stApp {
     background-color: var(--bg-color);
     background-image: var(--bg-pattern);
     background-size: 20px 20px;
     font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
+
+/* Global Text Visibility Fix */
+.stMarkdown, .stMarkdown p, .stMarkdown li, .stMarkdown span, 
+.stWidget label, section[data-testid="stSidebar"] .stMarkdown p,
+[data-testid="stHeader"], .stText, p, span, li {
+    color: var(--text-primary) !important;
+}
+
+/* Scanline Effect Overlay (Always Active) */
+.scanlines {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(
+        to bottom,
+        rgba(18, 16, 16, 0) 50%,
+        rgba(0, 0, 0, 0.1) 50%
+    );
+    background-size: 100% 4px;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.15;
+}
+
+@keyframes flicker {
+    0% { opacity: 0.97; }
+    5% { opacity: 0.95; }
+    10% { opacity: 0.9; }
+    15% { opacity: 0.95; }
+    20% { opacity: 0.98; }
+    25% { opacity: 0.95; }
+    30% { opacity: 0.9; }
+    100% { opacity: 1; }
+}
+
+/* Flicker Animation Temporarily Disabled for Focus */
+/* .stApp { animation: flicker 0.1s infinite; } */
 
 /* Sidebar - Glassmorphism */
 section[data-testid="stSidebar"] {
@@ -57,35 +85,45 @@ h4, h5, h6 {
     font-weight: 600;
 }
 
-/* Inputs */
+/* Inputs (Dark Optimized) */
 .stTextInput input, .stTextArea textarea {
     background-color: var(--input-bg) !important;
-    color: var(--text-secondary) !important;
+    color: var(--text-primary) !important;
     border: 1px solid var(--border-color) !important;
     border-radius: 8px !important;
     font-family: 'Consolas', 'Monaco', monospace !important;
-}
-
-/* Focus State */
-.stTextInput input:focus, .stTextArea textarea:focus {
-    border-color: var(--accent-primary) !important;
-    box-shadow: 0 0 0 1px var(--accent-primary) !important;
+    font-size: 1rem !important;
 }
 
 /* Buttons */
 .stButton button {
     background: var(--card-bg) !important;
-    color: var(--text-secondary) !important;
+    color: var(--text-primary) !important;
     border: 1px solid var(--border-color) !important;
     border-radius: 6px !important;
     font-weight: 600 !important;
-    transition: all 0.2s ease-in-out;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    outline: none !important;
+}
+
+/* Accessibility: Focus State */
+.stButton button:focus-visible {
+    box-shadow: 0 0 0 3px var(--accent-secondary) !important;
+    border-color: var(--accent-primary) !important;
+    outline: 2px solid var(--accent-primary) !important;
+    outline-offset: 2px !important;
 }
 
 .stButton button:hover {
     border-color: var(--accent-primary) !important;
     color: var(--accent-primary) !important;
-    box-shadow: 0 0 8px rgba(0, 242, 255, 0.2);
+    box-shadow: 0 4px 12px var(--btn-shadow) !important;
+    transform: translateY(-2px);
+}
+
+.stButton button:active {
+    transform: translateY(0) scale(0.98);
 }
 
 /* Active State (Primary Button) */
@@ -93,12 +131,25 @@ h4, h5, h6 {
     background: var(--header-gradient) !important;
     color: #ffffff !important;
     border: none !important;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 15px var(--btn-shadow) !important;
     font-weight: 700 !important;
 }
 
-/* Special case for Hacker theme primary text color if needed */
-:root:not(.prof-theme) .stButton button[kind="primary"] {
+.stButton button[kind="primary"]:hover {
+    box-shadow: 0 6px 20px var(--btn-shadow) !important;
+    transform: translateY(-3px);
+}
+
+/* Accessibility: Disabled/Loading State */
+.stButton button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Constant button text color for dark mode */
+.stButton button[kind="primary"] {
     color: #000000 !important;
 }
 
@@ -132,7 +183,68 @@ code {
     background: var(--header-gradient);
 }
 
+/* Skeleton Loading Animations */
+@keyframes skeleton-pulse {
+    0% { background-color: #161b22; }
+    50% { background-color: #1f2937; }
+    100% { background-color: #161b22; }
+}
+
+.skeleton-box {
+    width: 100%;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    border: 1px solid var(--border-color);
+}
+
+@keyframes scanline-pulse {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+}
+
+.scanning-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--header-gradient);
+    box-shadow: 0 0 15px var(--accent-primary);
+    z-index: 10000;
+    pointer-events: none;
+    animation: scanline-pulse 2s linear infinite;
+}
+
 /* Divider */
 hr {
     border-color: var(--border-color);
+}
+
+/* Forensic Diff Highlighting */
+.diff-container {
+    font-family: 'Consolas', 'Monaco', monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background-color: #161b22;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    line-height: 1.5;
+}
+
+.diff-del {
+    background-color: rgba(255, 75, 75, 0.3) !important;
+    color: #ff4b4b !important;
+    text-decoration: line-through;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+.diff-ins {
+    background-color: rgba(0, 245, 212, 0.2) !important;
+    color: #00f5d4 !important;
+    font-weight: 600;
+    padding: 0 2px;
+    border-radius: 2px;
 }

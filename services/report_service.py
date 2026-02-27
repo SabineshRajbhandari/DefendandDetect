@@ -71,7 +71,8 @@ class ReportService:
             final = result_data.get("final_analysis", result_data.get("groq_result", {}))
             report += "## 🔗 URL Threat Intelligence\n"
             if vt.get("status") == "success":
-                report += f"- **VirusTotal Detection**: {vt['stats'].get('malicious', 0)} malicious flags\n\n"
+                malicious = vt.get("stats", {}).get("malicious", 0)
+                report += f"- **VirusTotal Detection**: {malicious} malicious flags\n\n"
             report += f"### AI Synthesis\n{final.get('content', 'No content')}"
 
         elif module_type == "HASH":
@@ -79,7 +80,8 @@ class ReportService:
             groq = result_data.get("groq_result", {})
             report += "## 🔍 Fingerprint Analysis (SHA-256)\n"
             if vt.get("status") == "success":
-                report += f"- **Reputation**: {vt['stats'].get('malicious', 0)} detections\n\n"
+                malicious = vt.get("stats", {}).get("malicious", 0)
+                report += f"- **Reputation**: {malicious} detections\n\n"
             report += f"### AI Interpretation\n{groq.get('content', 'No content')}"
 
         elif module_type == "CVE":
@@ -127,10 +129,17 @@ class ReportService:
         """
         Generates a styled, premium HTML report.
         """
+        import html
         meta = ReportService._get_metadata(module_type)
-        content = result_data.get("groq_result", {}).get("content") or \
-                  result_data.get("final_analysis", {}).get("content") or \
-                  result_data.get("content", "No content").replace("\n", "<br>")
+        
+        # Hardening (security1): Escape user/AI content to prevent XSS
+        safe_input = html.escape(input_data)
+        
+        raw_content = result_data.get("groq_result", {}).get("content") or \
+                      result_data.get("final_analysis", {}).get("content") or \
+                      result_data.get("content", "No content")
+        
+        safe_content = html.escape(raw_content).replace("\n", "<br>")
         
         # Simple HTML template with "Hacker" aesthetic accents
         html = f"""
@@ -156,10 +165,10 @@ class ReportService:
                 <div class="meta">
                     <p><strong>Module:</strong> {meta['module']} | <strong>Version:</strong> {meta['version']}</p>
                     <p><strong>Generated:</strong> {meta['timestamp']}</p>
-                    <p><strong>Input:</strong> <code>{input_data[:100]}{'...' if len(input_data) > 100 else ''}</code></p>
+                    <p><strong>Input:</strong> <code>{safe_input[:100]}{'...' if len(safe_input) > 100 else ''}</code></p>
                 </div>
                 <div class="content">
-                    {content}
+                    {safe_content}
                 </div>
                 <div class="footer">
                     &copy; 2026 Defend & Detect AI Platform. All rights reserved.
@@ -169,4 +178,22 @@ class ReportService:
         </html>
         """
         return html
+
+    @staticmethod
+    def generate_batch_report(selected_scans: list) -> str:
+        """
+        Consolidates multiple scans into a single structured JSON report.
+        """
+        import json
+        batch_data = {
+            "metadata": {
+                "platform": "Defend & Detect AI",
+                "version": SCANNER_VERSION,
+                "type": "BATCH_EXPORT",
+                "item_count": len(selected_scans),
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            },
+            "scans": selected_scans
+        }
+        return json.dumps(batch_data, indent=4)
 

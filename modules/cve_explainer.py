@@ -1,6 +1,9 @@
 ﻿import streamlit as st
 from services.groq_service import groq_service
+from services.report_service import ReportService
 from prompts import PromptManager
+
+import re
 
 def show_cve_module():
     st.header("🛡️ CVE Explainer")
@@ -23,25 +26,25 @@ def show_cve_module():
         st.info(f"📜 Showing History from: {res['timestamp']}")
         display_cve_results(res['input'], res['result'], is_history=True, id=res['id'])
         
-        if st.button("Back to New Search"):
-             st.session_state.restored_result = None
-             st.rerun()
         return
 
     # 2. Check for active (unsaved) recent result
     if st.session_state.get("active_cve_result"):
         res = st.session_state.active_cve_result
         display_cve_results(res['cve_id'], res['result'])
-        if st.button("Start New Search"):
-            st.session_state.active_cve_result = None
-            st.rerun()
         return
 
-    cve_id = st.text_input("Enter CVE ID", placeholder="CVE-2021-44228")
+    cve_id = st.text_input("Enter CVE ID", placeholder="CVE-2021-44228").strip().upper()
 
     if st.button("Explain Vulnerability"):
         if not cve_id:
             st.warning("Please enter a CVE ID.")
+            return
+        
+        # Regex Validation for CVE: CVE-YYYY-NNNN(N)
+        cve_pattern = r"^CVE-\d{4}-\d{4,}$"
+        if not re.match(cve_pattern, cve_id):
+            st.error("❌ **Invalid Format**: Please enter a valid CVE ID (e.g., CVE-2021-44228).")
             return
 
         with st.spinner("Fetching vulnerability data..."):
@@ -66,7 +69,7 @@ def show_cve_module():
                 st.error(f"Analysis Failed: {result['error']}")
 
 def display_cve_results(cve_id, result_data, is_history=False, id=None):
-    st.subheader(f"Vulnerability Analysis: {cve_id}")
+    st.info(f"**CVE ID:** `{cve_id}`")
     
     if result_data.get("status") == "success":
         if result_data.get("thought"):
@@ -76,51 +79,65 @@ def display_cve_results(cve_id, result_data, is_history=False, id=None):
         st.markdown(result_data["content"])
 
         st.markdown("---")
-        with st.popover("📥 Export Report"):
-            st.markdown("### 📤 Options")
-            export_format = st.pills(
-                "Select Format", 
-                ["Markdown (.md)", "JSON (.json)", "Text (.txt)", "CSV (.csv)", "HTML (.html)"], 
-                selection_mode="single",
-                default="Markdown (.md)",
-                key=f"fmt_{id}" if id else "fmt_active"
-            )
-            
-            from services.report_service import ReportService
-            from datetime import datetime
-            
-            if "Markdown" in export_format:
-                report_content = ReportService.generate_markdown_report("CVE", cve_id, result_data)
-                ext, mime = "md", "text/markdown"
-            elif "JSON" in export_format:
-                report_content = ReportService.generate_json_report("CVE", cve_id, result_data)
-                ext, mime = "json", "application/json"
-            elif "CSV" in export_format:
-                report_content = ReportService.generate_csv_report("CVE", cve_id, result_data)
-                ext, mime = "csv", "text/csv"
-            elif "HTML" in export_format:
-                report_content = ReportService.generate_html_report("CVE", cve_id, result_data)
-                ext, mime = "html", "text/html"
-            else:
-                report_content = ReportService.generate_text_report("CVE", cve_id, result_data)
-                ext, mime = "txt", "text/plain"
-
-            st.markdown("### 📝 Preview")
-            with st.container(height=500, border=True):
-                if ext == "md":
-                    st.markdown(report_content)
-                elif ext == "html":
-                    st.components.v1.html(report_content, height=600, scrolling=True)
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🔄 Start New Scan", use_container_width=True, key=f"new_{id}" if id else "new_active"):
+                st.session_state.active_cve_result = None
+                st.session_state.restored_result = None
+                st.rerun()
+                
+        with c2:
+            with st.popover("📤 Export Report", use_container_width=True):
+                col_opt1, col_opt2 = st.columns([2, 1])
+                with col_opt1:
+                    export_format = st.pills(
+                        "Select Format", 
+                        ["Markdown (.md)", "JSON (.json)", "Text (.txt)", "CSV (.csv)", "HTML (.html)"], 
+                        selection_mode="single",
+                        default="Markdown (.md)",
+                        key=f"fmt_{id}" if id else "fmt_active"
+                    )
+                with col_opt2:
+                    wrap_text = st.checkbox("Word Wrap", value=True, key=f"wrap_{id}" if id else "wrap_active")
+                
+                from services.report_service import ReportService
+                from datetime import datetime
+                
+                if "Markdown" in export_format:
+                    report_content = ReportService.generate_markdown_report("CVE", cve_id, result_data)
+                    ext, mime = "md", "text/markdown"
+                elif "JSON" in export_format:
+                    report_content = ReportService.generate_json_report("CVE", cve_id, result_data)
+                    ext, mime = "json", "application/json"
+                elif "CSV" in export_format:
+                    report_content = ReportService.generate_csv_report("CVE", cve_id, result_data)
+                    ext, mime = "csv", "text/csv"
+                elif "HTML" in export_format:
+                    report_content = ReportService.generate_html_report("CVE", cve_id, result_data)
+                    ext, mime = "html", "text/html"
                 else:
-                    st.markdown(f"```text\n{report_content}\n```")
-
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            fname = f"cve_{ts}.{ext}"
-            st.download_button(
-                f"🚀 Download as {ext.upper()}", 
-                report_content, 
-                file_name=fname, 
-                mime=mime,
-                key=f"dl_{id}" if id else "dl_active",
-                use_container_width=True
-            )
+                    report_content = ReportService.generate_text_report("CVE", cve_id, result_data)
+                    ext, mime = "txt", "text/plain"
+    
+                with st.container(height=500, border=True):
+                    if wrap_text:
+                        if ext == "md":
+                            st.markdown(report_content)
+                        elif ext == "html":
+                            st.components.v1.html(report_content, height=600, scrolling=True)
+                        else:
+                            st.text(report_content)
+                    else:
+                        st.code(report_content, language=ext if ext != 'txt' else None)
+    
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                fname = f"cve_{ts}.{ext}"
+                st.download_button(
+                    f"🚀 Download as {ext.upper()}", 
+                    report_content, 
+                    file_name=fname, 
+                    mime=mime,
+                    key=f"dl_{id}" if id else "dl_active",
+                    use_container_width=True
+                )

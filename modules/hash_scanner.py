@@ -2,6 +2,7 @@
 import hashlib
 from services.virustotal_service import VirusTotalService
 from services.groq_service import groq_service
+from services.report_service import ReportService
 from prompts import PromptManager
 
 def show_hash_scanner():
@@ -23,18 +24,12 @@ def show_hash_scanner():
         st.info(f"📜 Showing History from: {res['timestamp']}")
         display_results(res['result'].get('vt_result', {}), res['result'].get('groq_result', {}), res['input'], is_history=True, id=res['id'])
         
-        if st.button("Back to New Scan"):
-             st.session_state.restored_result = None
-             st.rerun()
         return
 
     # 2. Check for active (unsaved) recent result
     if st.session_state.get("active_hash_result"):
         res = st.session_state.active_hash_result
         display_results(res['vt_result'], res['groq_result'], res['file_hash'])
-        if st.button("Start New Scan"):
-            st.session_state.active_hash_result = None
-            st.rerun()
         return
 
     uploaded_file = st.file_uploader("Upload a file to scan", type=None)
@@ -52,8 +47,8 @@ def show_hash_scanner():
                 vt_result = VirusTotalService.check_file_hash(file_hash)
                 
                 # 2. AI Reasoning
-                system_prompt = "You are a Malware Analysis Instructor. Explain the significance of the following file scan result."
-                user_prompt = f"The file with SHA-256 hash {file_hash} has these VirusTotal results: {vt_result}. Explain what this means in plain English."
+                system_prompt = PromptManager.get_system_prompt("hash")
+                user_prompt = f"Explain the security significance of SHA-256 fingerprint: {file_hash} with these results: {vt_result}"
                 
                 groq_result = groq_service.execute_prompt(user_prompt, system_prompt)
                 
@@ -74,11 +69,7 @@ def show_hash_scanner():
                 st.rerun()
 
 def display_results(vt_result, groq_result, file_hash, is_history=False, id=None):
-    # Support both dict (from brief multi-hash phase) and string formats
-    if isinstance(file_hash, dict):
-        file_hash = file_hash.get("SHA-256", "Unknown")
-        
-    st.text_input("File Hash (SHA-256)", value=file_hash, disabled=True, key=f"hash_{id}" if id else "current_hash")
+    st.info(f"**SHA-256**: `{file_hash}`")
     
     col1, col2 = st.columns(2)
     
@@ -105,9 +96,19 @@ def display_results(vt_result, groq_result, file_hash, is_history=False, id=None
                     st.write(groq_result["thought"])
             st.markdown(groq_result["content"])
 
-            st.markdown("---")
-            with st.popover("📥 Export Report"):
-                st.markdown("### 📤 Options")
+    st.markdown("---")
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("🔄 Start New Scan", use_container_width=True, key=f"new_{id}" if id else "new_active"):
+            st.session_state.active_hash_result = None
+            st.session_state.restored_result = None
+            st.rerun()
+            
+    with c2:
+        with st.popover("📤 Export Report", use_container_width=True):
+            col_opt1, col_opt2 = st.columns([2, 1])
+            with col_opt1:
                 export_format = st.pills(
                     "Select Format", 
                     ["Markdown (.md)", "JSON (.json)", "Text (.txt)", "CSV (.csv)", "HTML (.html)"], 
@@ -115,42 +116,46 @@ def display_results(vt_result, groq_result, file_hash, is_history=False, id=None
                     default="Markdown (.md)",
                     key=f"fmt_{id}" if id else "fmt_active"
                 )
-                
-                from datetime import datetime
-                report_data = {"vt_result": vt_result, "groq_result": groq_result}
-                
-                if "Markdown" in export_format:
-                    report_content = ReportService.generate_markdown_report("HASH", file_hash, report_data)
-                    ext, mime = "md", "text/markdown"
-                elif "JSON" in export_format:
-                    report_content = ReportService.generate_json_report("HASH", file_hash, report_data)
-                    ext, mime = "json", "application/json"
-                elif "CSV" in export_format:
-                    report_content = ReportService.generate_csv_report("HASH", file_hash, report_data)
-                    ext, mime = "csv", "text/csv"
-                elif "HTML" in export_format:
-                    report_content = ReportService.generate_html_report("HASH", file_hash, report_data)
-                    ext, mime = "html", "text/html"
-                else:
-                    report_content = ReportService.generate_text_report("HASH", file_hash, report_data)
-                    ext, mime = "txt", "text/plain"
+            with col_opt2:
+                wrap_text = st.checkbox("Word Wrap", value=True, key=f"wrap_{id}" if id else "wrap_active")
+            
+            from datetime import datetime
+            report_data = {"vt_result": vt_result, "groq_result": groq_result}
+            
+            if "Markdown" in export_format:
+                report_content = ReportService.generate_markdown_report("HASH", file_hash, report_data)
+                ext, mime = "md", "text/markdown"
+            elif "JSON" in export_format:
+                report_content = ReportService.generate_json_report("HASH", file_hash, report_data)
+                ext, mime = "json", "application/json"
+            elif "CSV" in export_format:
+                report_content = ReportService.generate_csv_report("HASH", file_hash, report_data)
+                ext, mime = "csv", "text/csv"
+            elif "HTML" in export_format:
+                report_content = ReportService.generate_html_report("HASH", file_hash, report_data)
+                ext, mime = "html", "text/html"
+            else:
+                report_content = ReportService.generate_text_report("HASH", file_hash, report_data)
+                ext, mime = "txt", "text/plain"
 
-                st.markdown("### 📝 Preview")
-                with st.container(height=500, border=True):
+            with st.container(height=500, border=True):
+                if wrap_text:
                     if ext == "md":
                         st.markdown(report_content)
                     elif ext == "html":
                         st.components.v1.html(report_content, height=600, scrolling=True)
                     else:
-                        st.markdown(f"```text\n{report_content}\n```")
+                        st.text(report_content)
+                else:
+                    st.code(report_content, language=ext if ext != 'txt' else None)
 
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                fname = f"hash_{ts}.{ext}"
-                st.download_button(
-                    f"🚀 Download as {ext.upper()}", 
-                    report_content, 
-                    file_name=fname, 
-                    mime=mime,
-                    key=f"dl_{id}" if id else "dl_active",
-                    use_container_width=True
-                )
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            fname = f"hash_{ts}.{ext}"
+            st.download_button(
+                f"🚀 Download as {ext.upper()}", 
+                report_content, 
+                file_name=fname, 
+                mime=mime,
+                key=f"dl_{id}" if id else "dl_active",
+                use_container_width=True
+            )

@@ -75,7 +75,8 @@ class Config:
     # -------------------------------------------------------------------------
     # Model Settings
     # -------------------------------------------------------------------------
-    # Using Llama 3.3 70b (Versatile) as the current stable 70b model
+    # Reverting to Llama 3.3 70b (Versatile) as DeepSeek-R1 was decommissioned.
+    # We will use explicit prompting to maintain the 'Intelligence Thinking' experience.
     MODEL_NAME = "llama-3.3-70b-versatile" 
     
     # Fallback model for faster/lighter queries if needed
@@ -89,7 +90,7 @@ class Config:
     # Application Settings
     # -------------------------------------------------------------------------
     APP_NAME = "Defend & Detect"
-    VERSION = "1.0.0"
+    VERSION = "1.4.0"
     
     # Retry settings
     MAX_RETRIES = 3

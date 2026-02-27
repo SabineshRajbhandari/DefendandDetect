@@ -96,11 +96,11 @@ class GroqService:
             content = chat_completion.choices[0].message.content
             thought = ""
             
-            # Extract thought if present
-            thought_match = re.search(r"<thought>(.*?)</thought>", content, re.DOTALL)
+            # Extract thought if present (handles standard <thought> and DeepSeek <think>)
+            thought_match = re.search(r"<(thought|think)>(.*?)</\1>", content, re.DOTALL)
             if thought_match:
-                thought = thought_match.group(1).strip()
-                content = re.sub(r"<thought>.*?</thought>", "", content, flags=re.DOTALL).strip()
+                thought = thought_match.group(2).strip()
+                content = re.sub(r"<(thought|think)>.*?</\1>", "", content, flags=re.DOTALL).strip()
             
             return {
                 "status": "success",

@@ -36,10 +36,27 @@
 - **Smarter Filenames**: Automated timestamping for streamlined incident tracking.
 - **Modern UI**: Sleek pill-based format selection for a premium user experience.
 
-### 7. 📜 Activity History
-- **Local Persistence**: Automatically saves your scan results to a local database (`history.db`).
-- **Privacy Focused**: Data stays on your machine. No cloud storage.
-- **Restore Context**: Click any past scan in the sidebar to instantly reload the full analysis.
+### 7. ⚖️ Advanced Compare Mode (v1.4.0)
+- **Forensic Correlation**: Side-by-side analysis of two scans (History vs Live).
+- **📊 Intelligence Delta Dashboard**: At-a-glance comparison of verdicts, infrastructure origins, entropy shifts, and data volume.
+- **🔍 Structural Input Diff**: Character-level visual highlighting to spot tactical shifts in malware payloads or phishing templates.
+- **🚀 Intentional Analysis**: User-triggered selection system to prevent accidental data loading.
+
+### 8. 📂 Security Activity Manager (v1.3.0)
+- **Dedicated Page**: A full-page interface for auditing your security intelligence.
+- **Selective Management**: Pick-and-choose scans using checkboxes with instant visual feedback.
+- **Batch Export**: Download consolidated JSON reports for multiple scans at once.
+- **Restore Context**: Instantly restore past results into their original modules for deeper review.
+
+### 9. 🛰️ Deep Forensic Intelligence
+- **Lexical Entropy**: Measures obfuscation levels in URLs and payloads.
+- **Geo-Origin Tracking**: Maps infrastructure to geographic locations and ISPs.
+- **YARA Signature Matching**: Scans for known malicious patterns using local rulesets.
+- **Redirect Chain Analysis**: Traces the full path of malicious short-links.
+
+### 8. 📜 Local Persistence
+- **SQLite Backend**: Automatically saves all scan results to `history.db`.
+- **Privacy Focused**: All data remains local to your environment.
 
 ---
 

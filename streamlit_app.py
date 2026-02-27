@@ -12,13 +12,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Initialize Session State
-if "history" not in st.session_state:
-    st.session_state.history = []
 if "restored_result" not in st.session_state:
     st.session_state.restored_result = None
-if "theme" not in st.session_state:
-    st.session_state.theme = "Hacker"
+if "selected_scans" not in st.session_state:
+    st.session_state.selected_scans = set()
 
 # Initialize Database
 DatabaseService.init_db()
@@ -26,34 +23,18 @@ DatabaseService.init_db()
 def load_css():
     with open("style.css") as f:
         css = f.read()
-        if st.session_state.theme == "Professional":
-            # Simple hack to apply theme - inject a div that wraps everything or just inject the class to stApp
-            # Streamlit doesn't allow direct body class manipulation easily, so we can override variables in a <style> block
-            st.markdown("""
-            <style>
-            :root {
-                --bg-color: #f8fafc;
-                --bg-pattern: none;
-                --sidebar-bg: #ffffff;
-                --text-primary: #1e293b;
-                --text-secondary: #475569;
-                --accent-primary: #2563eb;
-                --accent-secondary: #4f46e5;
-                --border-color: #e2e8f0;
-                --card-bg: #ffffff;
-                --input-bg: #f1f5f9;
-                --header-gradient: linear-gradient(45deg, #1e293b, #334155);
-            }
-            .stButton button[kind="primary"] {
-                color: #ffffff !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+        
+    # Inject static dark theme overrides if needed, 
+    # but ideally style.css should now be standard dark.
+    # We maintain scanlines as requested.
+    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+    st.markdown('<div class="scanlines"></div>', unsafe_allow_html=True)
 
 def main():
     load_css()
-    st.title(f"🛡️ {Config.APP_NAME}")
+    
+    # Static App Header
+    st.title("🛡️ DEFEND & DETECT")
     st.markdown("### AI-Powered Cybersecurity Education Platform")
     
     # Sidebar Navigation
@@ -68,76 +49,36 @@ def main():
     pages = {
         "Home": "🏠 DASHBOARD",
         "Phishing Detector": "📧 PHISHING DETECTOR",
-        "URL Analyzer": "🔗 URL ANALYZER",
+        "URL Analyzer": "URL ANALYZER",
         "File Hash Scanner": "🔍 HASH SCANNER",
         "CVE Explainer": "🛡️ CVE EXPLAINER",
-        "Log Translator": "📝 LOG TRANSLATOR"
+        "Log Translator": "📝 LOG TRANSLATOR",
+        "Compare Mode": "⚖️ COMPARE MODE",
+        "Activity History": "📂 ACTIVITY HISTORY"
     }
 
     for page_name, icon_name in pages.items():
         # Highlight active button
         button_type = "primary" if st.session_state.page == page_name else "secondary"
-        label = f"➤ {icon_name}" if st.session_state.page == page_name else icon_name
+        label = icon_name
         
         if st.sidebar.button(label, key=page_name, type=button_type, use_container_width=True):
             st.session_state.page = page_name
             st.session_state.restored_result = None # Clear restored result on nav
+            
+            # Clear all active (unsaved) results on navigation to prevent state leakage
+            active_states = [
+                "active_phish_result", "active_url_result", 
+                "active_hash_result", "active_cve_result", 
+                "active_log_result"
+            ]
+            for state in active_states:
+                if state in st.session_state:
+                    st.session_state[state] = None
+            
             st.query_params["page"] = page_name  # Save to URL
             st.rerun() # Force reload to update UI immediately
     
-    st.sidebar.markdown("---")
-
-    # Theme Switcher
-    with st.sidebar:
-        st.subheader("🎨 Appearance")
-        new_theme = st.toggle("Professional Mode", value=(st.session_state.theme == "Professional"))
-        if new_theme != (st.session_state.theme == "Professional"):
-            st.session_state.theme = "Professional" if new_theme else "Hacker"
-            st.rerun()
-    
-    st.sidebar.markdown("---")
-    
-    # History Sidebar
-    with st.sidebar.expander("📜 Recent Activity", expanded=True):
-        recent_scans = DatabaseService.get_recent_scans()
-        if not recent_scans:
-            st.info("No recent scans.")
-        else:
-            for scan in recent_scans:
-                label = f"[{scan['type']}] {scan['timestamp'].split(' ')[1]}"
-                if st.button(label, key=f"hist_{scan['id']}", help=scan['input']):
-                    st.session_state.restored_result = scan
-                    # Navigate to correct page
-                    page_map = {
-                        "PHISHING": "Phishing Detector",
-                        "URL": "URL Analyzer",
-                        "HASH": "File Hash Scanner",
-                        "CVE": "CVE Explainer",
-                        "LOG": "Log Translator"
-                    }
-                    if scan['type'] in page_map:
-                        st.session_state.page = page_map[scan['type']]
-                        st.query_params["page"] = st.session_state.page
-                        st.rerun()
-            
-            if st.button("🗑️ Clear History"):
-                DatabaseService.clear_history()
-                st.rerun()
-            
-            # Export History
-            import pandas as pd
-            if recent_scans:
-                df = pd.DataFrame(recent_scans)
-                # Remove 'result' if it's too big, or keep it for full export
-                csv = df.to_csv(index=False)
-                st.download_button(
-                    label="📤 Export History to CSV",
-                    data=csv,
-                    file_name="security_scan_history.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-
     st.sidebar.markdown("---")
     
     # API Key Configuration in Sidebar (if not in env)
@@ -171,6 +112,12 @@ def main():
     elif module == "Log Translator":
         from modules.log_translator import show_log_module
         show_log_module()
+    elif module == "Compare Mode":
+        from modules.compare_threats import show_compare_mode
+        show_compare_mode()
+    elif module == "Activity History":
+        from modules.history_manager import show_history_manager
+        show_history_manager()
 
 def show_home():
     st.markdown("""
@@ -182,6 +129,7 @@ def show_home():
     2. **🔗 URL Analyzer**: Deconstruct malicious links and understand obfuscation techniques.
     3. **🛡️ CVE Explainer**: Translate complex vulnerability descriptions into plain English.
     4. **📝 Log Translator**: Decipher obscure server logs into actionable security insights.
+    5. **📂 Activity History**: Audit, manage, and export your personal security scan intelligence.
     
     ---
     *Powered by GROQ and Llama 3*

@@ -1,4 +1,3 @@
-import re
 
 class PromptManager:
     """
@@ -49,6 +48,16 @@ THEN, provide the following sections:
 2. **Threat Type**: (Brute Force, SQL Injection, Privilege Escalation, etc.)
 3. **Source/Destination**: Extract IPs or Users if present.
 4. **Action Required**: Immediate steps to investigate.
+""",
+        "hash": """
+You are a Malware Analysis Instructor.
+Explain the significance of the following file scan results (SHA-256 fingerprint).
+FIRST, provide your internal reasoning process inside a <thought> block.
+THEN, provide the following sections:
+1. **Reputation Summary**: (Clean / Suspicious / Malicious) based on vendor flags.
+2. **Technical Interpretation**: What does this file fingerprint tell us?
+3. **Safety Advice**: Should the user execute this file?
+4. **Learning Moment**: A brief technical detail about hashing or malware signatures.
 """
     }
 
@@ -120,6 +129,7 @@ THEN, provide the following sections:
     def format_log_prompt(log_entry: str) -> str:
         safe_log = PromptManager.sanitize_input(log_entry)
         return f"Analyze this log entry:\n{safe_log}"
+
 
     @staticmethod
     def sanitize_input(text: str) -> str:

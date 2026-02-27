@@ -84,4 +84,4 @@ class HuggingFaceService:
 
         return {"status": "error", "error": "Unknown response"}
 
-hf_service = HuggingFaceService()
+

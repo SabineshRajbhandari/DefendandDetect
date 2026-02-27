@@ -54,6 +54,25 @@ class DatabaseService:
         return scans
 
     @staticmethod
+    def get_all_history():
+        """Retrieve all scans from the database."""
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute('SELECT * FROM scans ORDER BY id DESC')
+        rows = c.fetchall()
+        conn.close()
+        scans = []
+        for row in rows:
+            data = dict(row)
+            try:
+                data['result'] = json.loads(data['result'])
+            except:
+                data['result'] = {}
+            scans.append(data)
+        return scans
+
+    @staticmethod
     def get_scan_by_id(scan_id):
         """Retrieve a specific scan by ID."""
         conn = sqlite3.connect(DB_FILE)
@@ -72,6 +91,45 @@ class DatabaseService:
             return data
         return None
     
+    @staticmethod
+    def delete_scans(scan_ids: list):
+        """Delete specific records from the database."""
+        if not scan_ids:
+            return
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        # Use comma separated string for IN clause
+        placeholders = ', '.join(['?'] * len(scan_ids))
+        query = f'DELETE FROM scans WHERE id IN ({placeholders})'
+        c.execute(query, tuple(scan_ids))
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def get_history(sector: str = None, limit: int = 100):
+        """Retrieve scans with optional sector filtering and proper parameterization."""
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        if sector:
+            c.execute('SELECT * FROM scans WHERE type = ? ORDER BY id DESC LIMIT ?', (sector, limit))
+        else:
+            c.execute('SELECT * FROM scans ORDER BY id DESC LIMIT ?', (limit,))
+            
+        rows = c.fetchall()
+        conn.close()
+        
+        scans = []
+        for row in rows:
+            data = dict(row)
+            try:
+                data['result'] = json.loads(data['result'])
+            except:
+                data['result'] = {}
+            scans.append(data)
+        return scans
+
     @staticmethod
     def clear_history():
         """Delete all records from the database."""
