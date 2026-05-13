@@ -1,0 +1,11 @@
+streamlit
+groq
+python-dotenv
+tenacity
+requests
+huggingface_hub
+validators
+pandas
+yara-python
+python-whois
+PyPDF2

@@ -1,0 +1,253 @@
+:root {
+    /* Clean, Modern, Readable Dark Theme Variables */
+    --bg-color: #0f172a; /* Slate 900 */
+    --sidebar-bg: #1e293b; /* Slate 800 */
+    --text-primary: #f8fafc; /* Slate 50 */
+    --text-secondary: #94a3b8; /* Slate 400 */
+    --accent-primary: #38bdf8; /* Light Blue */
+    --accent-secondary: #818cf8; /* Indigo */
+    --border-color: #334155; /* Slate 700 */
+    --card-bg: #1e293b; /* Slate 800 */
+    --input-bg: #0f172a;
+    --header-gradient: linear-gradient(90deg, #38bdf8, #818cf8);
+    --placeholder-color: rgba(148, 163, 184, 0.5);
+    --btn-shadow: rgba(56, 189, 248, 0.2);
+}
+
+.stApp {
+    background-color: var(--bg-color);
+    font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text-primary) !important;
+    line-height: 1.6 !important;
+}
+
+/* Global Text Visibility Fix */
+.stMarkdown, .stMarkdown p, .stMarkdown li, .stMarkdown span, 
+.stWidget label, section[data-testid="stSidebar"] .stMarkdown p,
+[data-testid="stHeader"], .stText, p, span, li {
+    color: var(--text-primary) !important;
+}
+
+/* Scanline Effect Overlay Disabled for Better Readability */
+.scanlines {
+    display: none;
+}
+
+/* Flicker Animation Temporarily Disabled for Focus */
+/* .stApp { animation: flicker 0.1s infinite; } */
+
+/* Sidebar - Glassmorphism */
+section[data-testid="stSidebar"] {
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+/* Titles and Headers */
+h1, h2, h3 {
+    background: var(--header-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700 !important;
+    letter-spacing: -0.5px;
+}
+
+h4, h5, h6 {
+    color: var(--text-primary) !important;
+    font-weight: 600;
+}
+
+/* Inputs (Dark Optimized) */
+.stTextInput input, .stTextArea textarea {
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    font-family: 'Consolas', 'Monaco', monospace !important;
+    font-size: 1rem !important;
+}
+
+/* Buttons */
+.stButton button {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    outline: none !important;
+}
+
+/* Accessibility: Focus State */
+.stButton button:focus-visible {
+    box-shadow: 0 0 0 3px var(--accent-secondary) !important;
+    border-color: var(--accent-primary) !important;
+    outline: 2px solid var(--accent-primary) !important;
+    outline-offset: 2px !important;
+}
+
+.stButton button:hover {
+    border-color: var(--accent-primary) !important;
+    color: var(--accent-primary) !important;
+    box-shadow: 0 4px 12px var(--btn-shadow) !important;
+    transform: translateY(-2px);
+}
+
+.stButton button:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Active State (Primary Button) */
+.stButton button[kind="primary"] {
+    background: var(--header-gradient) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 15px var(--btn-shadow) !important;
+    font-weight: 700 !important;
+}
+
+.stButton button[kind="primary"]:hover {
+    box-shadow: 0 6px 20px var(--btn-shadow) !important;
+    transform: translateY(-3px);
+}
+
+/* Accessibility: Disabled/Loading State */
+.stButton button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Constant button text color for dark mode */
+.stButton button[kind="primary"] {
+    color: #000000 !important;
+}
+
+/* Data Display & Code Blocks */
+code {
+    font-family: 'Fira Code', monospace;
+    color: #7ee787 !important;
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 2px 6px;
+}
+
+/* Alerts/Messages */
+.stAlert {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-secondary);
+}
+
+/* Expander */
+.streamlit-expanderHeader {
+    background-color: var(--card-bg);
+    border-radius: 6px;
+    color: var(--text-secondary) !important;
+}
+
+/* Progress Bar */
+.stProgress > div > div > div > div {
+    background: var(--header-gradient);
+}
+
+/* Skeleton Loading Animations */
+@keyframes skeleton-pulse {
+    0% { background-color: #161b22; }
+    50% { background-color: #1f2937; }
+    100% { background-color: #161b22; }
+}
+
+.skeleton-box {
+    width: 100%;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    border: 1px solid var(--border-color);
+}
+
+
+/* Divider */
+hr {
+    border-color: var(--border-color);
+}
+
+/* Forensic Diff Highlighting */
+.diff-container {
+    font-family: 'Consolas', 'Monaco', monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background-color: #161b22;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    line-height: 1.5;
+}
+
+.diff-del {
+    background-color: rgba(255, 75, 75, 0.3) !important;
+    color: #ff4b4b !important;
+    text-decoration: line-through;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+.diff-ins {
+    background-color: rgba(0, 245, 212, 0.2) !important;
+    color: #00f5d4 !important;
+    font-weight: 600;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+/* ==========================================
+   MOBILE OPTIMIZATION (iOS & Android)
+   ========================================== */
+@media (max-width: 768px) {
+    /* Refine spacing for small viewports */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Increase Tap Targets for touch */
+    .stButton button {
+        padding: 0.6rem 1rem !important;
+        min-height: 48px !important; /* Standard touch target size */
+        font-size: 0.95rem !important;
+    }
+
+    /* Compact UI elements */
+    h1 { font-size: 1.8rem !important; }
+    h2 { font-size: 1.5rem !important; }
+    h3 { font-size: 1.2rem !important; }
+
+    /* Adjust Diff Container for readability */
+    .diff-container {
+        padding: 0.75rem !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Fix table overflow */
+    .stTable {
+        font-size: 0.8rem !important;
+        display: block;
+        overflow-x: auto;
+    }
+
+    /* Reduce scanline opacity on mobile for clarity */
+    .scanlines {
+        opacity: 0.08;
+    }
+
+    /* Simplify sidebar on mobile */
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+        gap: 0.5rem !important;
+    }
+}
