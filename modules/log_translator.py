@@ -28,7 +28,8 @@ def show_log_module():
     # 2. Check for active (unsaved) recent result
     # Displayed below form
 
-    log_entry = st.text_area("Paste Log Entry", height=150, placeholder="Example: Feb 7 10:00:01 server sshd[1234]: Failed password for invalid user admin from 192.168.1.100 port 5000 ssh2")
+    log_entry = st.text_area("Paste Log Entry or Log Dump", height=200, placeholder="Example:\nFeb 7 10:00:01 server sshd: Failed password for admin from 1.2.3.4\nFeb 7 10:00:02 server sshd: Failed password for admin from 1.2.3.4")
+    st.caption("Pro Tip: You can paste multiple lines here for pattern analysis.")
 
     if st.button("Translate Log"):
         if not log_entry or len(log_entry.strip()) < 10:
@@ -50,16 +51,23 @@ def show_log_module():
                 if geo_info.get("status") == "success":
                     context_data["ips"][ip] = geo_info
             
-            # 3. Context-Aware Prompting
+            # 3. Entity Extraction
+            entities = {
+                "usernames": list(set(re.findall(r"user\s+([a-zA-Z0-9_\-]+)", log_entry))),
+                "status_codes": list(set(re.findall(r"\b([45][0-9]{2})\b", log_entry))),
+                "ports": list(set(re.findall(r"port\s+([0-9]+)", log_entry)))
+            }
+            
+            # 4. Context-Aware Prompting
             user_prompt = PromptManager.format_log_prompt(log_entry)
-            if extracted_ips:
-                user_prompt += f"\n\n[SYSTEM AUTOMATION] I have automatically extracted the following IP information for you to use in your analysis: {context_data}"
+            user_prompt += f"\n\n[SYSTEM AUTOMATION] Intelligence:\nIP Geo: {context_data}\nExtracted Entities: {entities}"
 
             system_prompt = PromptManager.get_system_prompt("logs")
             result = groq_service.execute_prompt(user_prompt, system_prompt)
             
             # Append context data to result for UI rendering
             result["context_data"] = context_data
+            result["entities"] = entities
             
             if result["status"] == "success":
                 st.success("Translation Complete")
@@ -91,8 +99,20 @@ def display_log_results(log_entry, result_data, is_history=False, id=None):
                 for ip, geo in context_data["ips"].items():
                     if geo.get("status") == "success":
                         st.markdown(f"**IP:** `{ip}` ➔ **{geo.get('country', 'Unknown')}** (ISP: {geo.get('isp', 'Unknown')})")
-                    else:
-                        st.markdown(f"**IP:** `{ip}` ➔ Lookup Failed")
+        
+        if result_data.get("entities"):
+            ent = result_data["entities"]
+            with st.expander("🧩 Extracted Forensic Entities"):
+                c1, c2, c3 = st.columns(3)
+                with c1: 
+                    st.write("**Users**")
+                    for u in ent.get("usernames", []): st.code(u)
+                with c2:
+                    st.write("**HTTP Status**")
+                    for s in ent.get("status_codes", []): st.code(s)
+                with c3:
+                    st.write("**Target Ports**")
+                    for p in ent.get("ports", []): st.code(p)
         
         if result_data.get("thought"):
             with st.expander("🧠 AI Thinking Process"):

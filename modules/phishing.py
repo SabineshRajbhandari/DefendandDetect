@@ -28,8 +28,15 @@ def show_phishing_module():
     # 2. Check for active (unsaved) recent result
     # Displayed below form
 
-    subject = st.text_input("Email Subject (Optional)", placeholder="e.g., Urgent: Account Verification Required")
-    body = st.text_area("Email Body", height=200, placeholder="Paste the email content here...")
+    t1, t2 = st.tabs(["✍️ Simple Paste", "🔬 Deep Header Analysis"])
+    
+    with t1:
+        subject = st.text_input("Email Subject (Optional)", placeholder="e.g., Urgent: Account Verification Required")
+        body = st.text_area("Email Body", height=200, placeholder="Paste the email content here...")
+    
+    with t2:
+        headers = st.text_area("Raw Email Headers (Optional)", height=250, placeholder="Paste headers from Gmail/Outlook here...")
+        st.caption("Analyzing headers can reveal SPF/DKIM failures and the true sender IP.")
 
     if st.button("Analyze Email"):
         if not body or len(body.strip()) < 20:
@@ -79,6 +86,18 @@ def show_phishing_module():
         result["whois_intel"] = whois_intel
         result["defanged_urls"] = defanged_urls
         
+        # 5. Header Intelligence (if provided)
+        if headers:
+            from services.intelligence_service import IntelligenceService
+            # Simple header extraction for educational purpose
+            sender_ip = re.search(r"Received: from .*?\[(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\]", headers)
+            if sender_ip:
+                result["sender_geo"] = IntelligenceService.get_geo_info(sender_ip.group(1))
+            
+            spf = re.search(r"spf=(pass|fail|softfail|neutral)", headers, re.I)
+            dkim = re.search(r"dkim=(pass|fail)", headers, re.I)
+            result["auth_status"] = {"spf": spf.group(1) if spf else "Unknown", "dkim": dkim.group(1) if dkim else "Unknown"}
+        
         # Clear skeleton
         placeholder.empty()
 
@@ -110,10 +129,32 @@ def display_phish_results(subject, body, result_data, is_history=False, id=None)
     st.text_area("Email Content", value=body, height=200, disabled=True, key=f"body_{id}" if id else "current_body")
     
     if result_data.get("status") == "success":
-        # Render HF Intelligence
+        # 📊 Visual Severity Gauge
         if "hf_result" in result_data and result_data["hf_result"].get("status") == "success":
             hf = result_data["hf_result"]
-            st.markdown(f"**🤖 ML Model Classification:** `{hf['label']}` (Confidence: {hf['score']:.1%})")
+            score = hf['score']
+            is_phish = hf['label'].lower() == 'phishing'
+            color = "#ef4444" if is_phish and score > 0.7 else "#f59e0b" if is_phish else "#10b981"
+            
+            st.markdown(f"""
+                <div style="background: {color}22; padding: 15px; border-radius: 10px; border-left: 5px solid {color}; margin-bottom: 20px;">
+                    <span style="font-size: 0.9rem; color: var(--text-secondary);">Phishing ML Verdict</span><br/>
+                    <span style="font-size: 1.8rem; font-weight: bold; color: {color};">{hf['label']} ({score:.1%})</span>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        # 📨 Header Intelligence Display
+        if "auth_status" in result_data:
+            with st.expander("🔬 Email Authentication Forensic (Headers)", expanded=True):
+                c1, c2, c3 = st.columns(3)
+                auth = result_data["auth_status"]
+                with c1: st.metric("SPF Status", auth["spf"], delta="FAIL" if auth["spf"] == "fail" else None)
+                with c2: st.metric("DKIM Status", auth["dkim"], delta="FAIL" if auth["dkim"] == "fail" else None)
+                
+                if "sender_geo" in result_data and result_data["sender_geo"].get("status") == "success":
+                    geo = result_data["sender_geo"]
+                    with c3: st.metric("Source IP Location", f"{geo['country']}")
+                    st.caption(f"Origin IP: {geo['ip']} | ISP: {geo['isp']}")
             
         # Render YARA Intelligence if available
         if "yara" in result_data and result_data["yara"].get("status") == "success":

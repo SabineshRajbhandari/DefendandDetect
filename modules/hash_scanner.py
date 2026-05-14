@@ -63,6 +63,10 @@ def show_hash_scanner():
                     except Exception:
                         pass
                         
+                    # Advanced Forensic Analysis
+                    static_analysis["file_type"] = IntelligenceService.check_file_type(file_bytes)
+                    static_analysis["strings"] = IntelligenceService.get_binary_strings(file_bytes)
+                    
                     if is_pdf:
                         static_analysis["pdf"] = IntelligenceService.analyze_pdf(file_bytes)
 
@@ -104,8 +108,9 @@ def show_hash_scanner():
 def display_results(vt_result, groq_result, file_hash, static_analysis=None, is_history=False, id=None):
     if static_analysis is None:
         static_analysis = {}
-        
-    st.info(f"**Target SHA-256**: `{file_hash}`")
+    
+    if is_history:
+        st.info(f"**Target SHA-256**: `{file_hash}`")
     
     # Render Static Analysis if available
     if static_analysis:
@@ -134,25 +139,46 @@ def display_results(vt_result, groq_result, file_hash, static_analysis=None, is_
                 with cols[2]:
                     if yara_res["match_count"] > 0:
                         st.error(f"⚠️ {yara_res['match_count']} YARA Matches")
-                        for m in yara_res["matches"]:
-                            st.markdown(f"- `{m}`")
                     else:
                         st.success("YARA: Clean")
+
+            st.markdown("---")
+            f1, f2 = st.columns(2)
+            with f1:
+                st.write(f"**Detected File Type:** `{static_analysis.get('file_type', 'Unknown')}`")
+            with f2:
+                if static_analysis.get("strings"):
+                    with st.expander("🔗 Extracted Forensic Strings (URLs/APIs)"):
+                        for s in static_analysis["strings"]:
+                            st.code(s, language=None)
 
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("VirusTotal Reputation")
         if vt_result.get("status") == "success":
-            if vt_result.get("is_malicious"):
-                st.error(f"🚨 MALICIOUS ({vt_result['stats']['malicious']} vendors)")
-            elif "message" in vt_result:
-                st.success(f"✅ {vt_result['message']}")
+            # 📊 Visual Severity Gauge
+            stats = vt_result.get('stats', {})
+            if stats:
+                malicious = stats.get('malicious', 0)
+                total = sum(stats.values())
+                color = "#ef4444" if malicious > 0 else "#10b981"
+                
+                st.markdown(f"""
+                    <div style="background: {color}22; padding: 15px; border-radius: 10px; border-left: 5px solid {color}; margin-bottom: 20px;">
+                        <span style="font-size: 0.9rem; color: var(--text-secondary);">Threat Detection Rate</span><br/>
+                        <span style="font-size: 1.8rem; font-weight: bold; color: {color};">{malicious} / {total} Vendors</span>
+                    </div>
+                """, unsafe_allow_html=True)
             else:
-                st.success("✅ Clean")
+                st.success(f"✅ {vt_result.get('message', 'Hash not found in VT database (likely clean or unknown).')}")
+
+            if vt_result.get("threat_label") and vt_result.get("threat_label") != "N/A":
+                st.warning(f"**Suggested Label:** {vt_result['threat_label']}")
             
-            if "stats" in vt_result:
-                st.json(vt_result["stats"])
+            if vt_result.get("tags"):
+                st.write("**Analysis Tags:**")
+                st.caption(", ".join(vt_result["tags"]))
         else:
             st.error(f"Query Failed: {vt_result.get('message')}")
 

@@ -127,21 +127,33 @@ Keep the tone exceptionally helpful, highly detailed, educational, and very easy
         """
 
     @staticmethod
-    def format_cve_prompt(cve_id: str, nvd_data: dict = None) -> str:
+    def format_cve_prompt(cve_id: str, nvd_data: dict = None, epss_data: dict = None, cisa_data: dict = None) -> str:
         description = "No description provided."
-        metrics = ""
+        metrics = []
         
         if nvd_data and nvd_data.get("status") == "success":
             description = nvd_data.get("description", description)
-            metrics = f"CVSS Score: {nvd_data.get('score')} ({nvd_data.get('severity')})"
+            metrics.append(f"CVSS Score: {nvd_data.get('score')} ({nvd_data.get('severity')})")
+            metrics.append(f"Vector: {nvd_data.get('vector')}")
+            if nvd_data.get("cwes"):
+                metrics.append(f"CWE Mapping: {', '.join(nvd_data.get('cwes'))}")
+            
+        if epss_data and epss_data.get("status") == "success":
+            metrics.append(f"EPSS Score: {epss_data.get('epss')} (Probability of exploitation in next 30 days)")
+
+        if cisa_data and cisa_data.get("is_exploited"):
+            metrics.append("CRITICAL: This vulnerability is on the CISA KEV list (confirmed active exploitation).")
+            
+        metrics_str = "\n".join(metrics)
             
         return f"""
         Explain vulnerability {cve_id}.
         
         Official Description:
         {description}
-        
-        {metrics}
+
+        Intelligence Metrics:
+        {metrics_str}
         """
 
     @staticmethod

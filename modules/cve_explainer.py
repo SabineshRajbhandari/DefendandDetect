@@ -4,6 +4,32 @@ from services.report_service import ReportService
 from prompts import PromptManager
 
 import re
+import html
+
+def parse_cvss_vector(vector):
+    """Translates a CVSS vector string into human-readable definitions."""
+    if not vector or vector == "N/A": return {}
+    
+    mapping = {
+        "AV": ("Attack Vector", {"N": "Network", "A": "Adjacent", "L": "Local", "P": "Physical"}),
+        "AC": ("Complexity", {"L": "Low", "H": "High"}),
+        "PR": ("Privileges", {"N": "None", "L": "Low", "H": "High"}),
+        "UI": ("User Interaction", {"N": "None", "R": "Required"}),
+        "S":  ("Scope", {"U": "Unchanged", "C": "Changed"}),
+        "C":  ("Confidentiality", {"N": "None", "L": "Low", "H": "High"}),
+        "I":  ("Integrity", {"N": "None", "L": "Low", "H": "High"}),
+        "A":  ("Availability", {"N": "None", "L": "Low", "H": "High"})
+    }
+    
+    parts = vector.split("/")
+    decoded = {}
+    for part in parts:
+        if ":" in part:
+            k, v = part.split(":")
+            if k in mapping:
+                label, values = mapping[k]
+                decoded[label] = values.get(v, v)
+    return decoded
 
 def show_cve_module():
     st.header("🛡️ CVE Explainer")
@@ -44,11 +70,23 @@ def show_cve_module():
             st.error("❌ **Invalid Format**: Please enter a valid CVE ID (e.g., CVE-2021-44228).")
             return
 
-        with st.spinner("Fetching vulnerability data..."):
-            user_prompt = PromptManager.format_cve_prompt(cve_id)
+        with st.spinner("🛰️ Querying NIST NVD Database..."):
+            from services.nvd_service import NVDService
+            nvd_intel = NVDService.fetch_cve(cve_id)
+
+        with st.spinner("🚨 Checking CISA & EPSS Intelligence..."):
+            from services.threat_intel_service import threat_intel_service
+            cisa_intel = threat_intel_service.check_cisa_kev(cve_id)
+            epss_intel = threat_intel_service.fetch_epss_score(cve_id)
+            
+        with st.spinner("🧠 AI Reasoning in Progress..."):
+            user_prompt = PromptManager.format_cve_prompt(cve_id, nvd_intel, epss_intel, cisa_intel)
             system_prompt = PromptManager.get_system_prompt("cve")
             
             result = groq_service.execute_prompt(user_prompt, system_prompt)
+            result["nvd_intel"] = nvd_intel 
+            result["cisa_intel"] = cisa_intel
+            result["epss_intel"] = epss_intel
             
             if result["status"] == "success":
                 st.success("Analysis Complete")
@@ -74,11 +112,64 @@ def display_cve_results(cve_id, result_data, is_history=False, id=None):
     st.info(f"**CVE ID:** `{cve_id}`")
     
     if result_data.get("status") == "success":
+        nvd = result_data.get("nvd_intel", {})
+        cisa = result_data.get("cisa_intel", {})
+        epss = result_data.get("epss_intel", {})
+
+        # 🚨 CISA KEV Warning
+        if cisa and cisa.get("is_exploited"):
+            st.error(f"""
+            ### 🚨 CRITICAL: Known Exploited Vulnerability
+            This CVE is listed in the **CISA KEV Catalog**. 
+            **Action Required:** {cisa['details'].get('requiredAction', 'Patch immediately.')}
+            **Due Date:** {cisa['details'].get('dueDate', 'N/A')}
+            """, icon="⚠️")
+
+        # 📊 Severity & Prediction Dashboard
+        if nvd and nvd.get("status") == "success":
+            with st.container(border=True):
+                c1, c2, c3 = st.columns([2, 1, 1])
+                with c1:
+                    score = float(nvd.get("score", 0))
+                    color = "#ef4444" if score >= 7 else "#f59e0b" if score >= 4 else "#10b981"
+                    st.markdown(f"""
+                        <div style="background: {color}22; padding: 15px; border-radius: 10px; border-left: 5px solid {color};">
+                            <span style="font-size: 0.9rem; color: var(--text-secondary);">CVSS v3.x Severity</span><br/>
+                            <span style="font-size: 2rem; font-weight: bold; color: {color};">{score} / 10.0</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+                
+                with c2:
+                    st.metric("EPSS Prob.", f"{epss.get('epss', 0)*100:.2f}%", help="Probability of exploitation in next 30 days")
+                with c3:
+                    st.metric("Percentile", f"{epss.get('percentile', 0)*100:.1f}th")
+
+            with st.expander("🔬 Forensic Breakdown (Vector & CWE)"):
+                v_col, c_col = st.columns(2)
+                with v_col:
+                    st.caption("CVSS Vector Breakdown")
+                    vector_map = parse_cvss_vector(nvd.get("vector", ""))
+                    for label, val in vector_map.items():
+                        st.write(f"**{label}:** {val}")
+                with c_col:
+                    st.caption("CWE Mappings")
+                    for cwe in nvd.get("cwes", []):
+                        st.code(cwe)
+                
+                st.markdown("**Original Description:**")
+                st.caption(nvd.get('description'))
+
         if result_data.get("thought"):
             with st.expander("🧠 AI Thinking Process"):
                 st.write(result_data["thought"])
         
+        st.markdown("### 🔍 AI Forensic Analysis & Remediation")
         st.markdown(result_data["content"])
+
+        # 🛠️ References & Patch Links
+        if nvd.get("references"):
+            with st.expander("🛠️ Official Patch Links & References"):
+                st.table(nvd["references"][:10]) # Show top 10 refs
 
         st.markdown("---")
         

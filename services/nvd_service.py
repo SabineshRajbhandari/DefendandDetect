@@ -38,16 +38,38 @@ class NVDService:
                     
                     # Extract Metrics (CVSS)
                     metrics = cve_item.get("metrics", {})
-                    score = "N/A"
+                    score = 0.0
                     severity = "Unknown"
+                    vector = "N/A"
                     
                     # Try V3.1, then V3.0, then V2
                     if "cvssMetricV31" in metrics:
-                        score = metrics["cvssMetricV31"][0]["cvssData"]["baseScore"]
-                        severity = metrics["cvssMetricV31"][0]["cvssData"]["baseSeverity"]
+                        cvss_data = metrics["cvssMetricV31"][0]["cvssData"]
+                        score = cvss_data.get("baseScore", 0.0)
+                        severity = cvss_data.get("baseSeverity", "Unknown")
+                        vector = cvss_data.get("vectorString", "N/A")
                     elif "cvssMetricV30" in metrics:
-                         score = metrics["cvssMetricV30"][0]["cvssData"]["baseScore"]
-                         severity = metrics["cvssMetricV30"][0]["cvssData"]["baseSeverity"]
+                        cvss_data = metrics["cvssMetricV30"][0]["cvssData"]
+                        score = cvss_data.get("baseScore", 0.0)
+                        severity = cvss_data.get("baseSeverity", "Unknown")
+                        vector = cvss_data.get("vectorString", "N/A")
+
+                    # Extract CWE
+                    weaknesses = cve_item.get("weaknesses", [])
+                    cwes = []
+                    for w in weaknesses:
+                        for d in w.get("description", []):
+                            if d.get("lang") == "en":
+                                cwes.append(d.get("value"))
+
+                    # Extract References
+                    refs = []
+                    for r in cve_item.get("references", []):
+                        refs.append({
+                            "url": r.get("url"),
+                            "source": r.get("source", "Unknown"),
+                            "tags": r.get("tags", [])
+                        })
                     
                     return {
                         "status": "success",
@@ -55,6 +77,9 @@ class NVDService:
                         "description": desc_text,
                         "score": score,
                         "severity": severity,
+                        "vector": vector,
+                        "cwes": cwes,
+                        "references": refs,
                         "published": cve_item.get("published", ""),
                         "lastModified": cve_item.get("lastModified", "")
                     }

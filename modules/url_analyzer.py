@@ -54,21 +54,26 @@ def show_url_analyzer():
             st.markdown('<div class="skeleton-box" style="height: 150px;"></div>', unsafe_allow_html=True)
             st.info("🧠 **AI Reasoning in Progress...** Analyzing domain reputation and structural patterns.")
 
+        from services.virustotal_service import VirusTotalService
         from services.intelligence_service import IntelligenceService
         
-        user_prompt = PromptManager.format_url_prompt(url)
+        # Deep Intelligence Lookups
+        vt_result = VirusTotalService.check_url(url)
+        domain = url.split('://')[-1].split('/')[0]
+        
+        user_prompt = PromptManager.format_url_prompt(url, vt_result)
         system_prompt = PromptManager.get_system_prompt("url")
         
         result = groq_service.execute_prompt(user_prompt, system_prompt)
         
-        # Deep Intelligence Lookups
-        domain = url.split('://')[-1].split('/')[0]
+        result["vt_result"] = vt_result
         result["whois"] = IntelligenceService.get_whois_data(url)
         result["geo"] = IntelligenceService.get_geo_info(url)
         result["redirects"] = IntelligenceService.get_redirect_chain(url)
         result["lexical"] = {
             "entropy": IntelligenceService.calculate_entropy(domain),
-            "lookalike": IntelligenceService.check_lookalike(domain)
+            "lookalike": IntelligenceService.check_lookalike(domain),
+            "yara": IntelligenceService.scan_yara(url)
         }
         
         # Clear skeleton
@@ -98,6 +103,23 @@ def display_url_results(url, result_data, is_history=False, id=None):
     st.info(f"**URL:** `{url}`")
     
     if result_data.get("status") == "success":
+        # 🚨 VirusTotal Gauge
+        vt = result_data.get("vt_result", {})
+        if vt.get("status") == "success":
+            stats = vt.get("stats", {})
+            if stats:
+                malicious = stats.get("malicious", 0)
+                total = sum(stats.values())
+                color = "#ef4444" if malicious > 0 else "#10b981"
+                
+                st.markdown(f"""
+                    <div style="background: {color}22; padding: 15px; border-radius: 10px; border-left: 5px solid {color}; margin-bottom: 20px;">
+                        <span style="font-size: 0.9rem; color: var(--text-secondary);">VirusTotal Reputation Score</span><br/>
+                        <span style="font-size: 1.8rem; font-weight: bold; color: {color};">{malicious} / {total} Vendors Flagged</span>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.success(f"✅ {vt.get('message', 'URL not found in VT database (likely clean or unscanned).')}")
         # 🟢 Layer 1: DNS & WHOIS
         if "whois" in result_data and result_data["whois"]["status"] == "success":
             w = result_data["whois"]
@@ -151,6 +173,15 @@ def display_url_results(url, result_data, is_history=False, id=None):
                         else:
                             st.metric("Deception Risk", "CLEAR")
                             st.success("No famous brand lookalikes.")
+                    
+                    if lex.get("yara") and lex["yara"].get("status") == "success":
+                        st.divider()
+                        y = lex["yara"]
+                        if y["match_count"] > 0:
+                            st.error(f"⚠️ {y['match_count']} YARA URL Matches")
+                            for m in y["matches"]: st.code(m)
+                        else:
+                            st.success("YARA: No URL patterns found")
 
         with col_ai:
             if result_data.get("thought"):

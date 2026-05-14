@@ -156,6 +156,24 @@ class IntelligenceService:
         return round(entropy, 2)
 
     @staticmethod
+    def get_binary_strings(file_bytes: bytes, min_length: int = 4):
+        """Extract ASCII and Unicode strings from binary data."""
+        chars = r"A-Za-z0-9/\-:.,_$%'()[\]<> "
+        regexp = '[%s]{%d,}' % (chars, min_length)
+        pattern = re.compile(regexp)
+        strings = pattern.findall(file_bytes.decode('ascii', errors='ignore'))
+        interesting = [s.strip() for s in strings if any(ind in s for ind in [r"http", r"\d\.\d", r"Alloc", r"Process"])]
+        return list(set(interesting))[:15]
+
+    @staticmethod
+    def check_file_type(file_bytes: bytes) -> str:
+        """Identify file type based on magic bytes."""
+        if file_bytes.startswith(b"MZ"): return "Windows Executable (PE)"
+        if file_bytes.startswith(b"\x7fELF"): return "Linux Executable (ELF)"
+        if file_bytes.startswith(b"%PDF"): return "PDF Document"
+        return "Unknown"
+
+    @staticmethod
     def analyze_pdf(file_bytes: bytes):
         """Analyze PDF for suspicious elements (JavaScript, OpenAction) without executing."""
         try:

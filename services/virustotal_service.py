@@ -67,7 +67,8 @@ class VirusTotalService:
             
             if response.status_code == 200:
                 data = response.json()
-                stats = data["data"]["attributes"]["last_analysis_stats"]
+                attrs = data["data"]["attributes"]
+                stats = attrs["last_analysis_stats"]
                 
                 # Determine verdict based on malicious count
                 is_malicious = stats.get("malicious", 0) > 0
@@ -76,7 +77,12 @@ class VirusTotalService:
                     "status": "success",
                     "is_malicious": is_malicious,
                     "stats": stats,
-                    "scan_date": data["data"]["attributes"].get("last_analysis_date")
+                    "tags": attrs.get("tags", []),
+                    "threat_label": attrs.get("popular_threat_classification", {}).get("suggested_threat_label", "N/A"),
+                    "threat_category": attrs.get("popular_threat_classification", {}).get("popular_threat_category", []),
+                    "scan_date": attrs.get("last_analysis_date"),
+                    "vba_info": attrs.get("vba_info", {}),
+                    "trusted_verdict": attrs.get("trusted_verdict", {})
                 }
             elif response.status_code == 404:
                 return {"status": "success", "message": "Hash not found in database (Clean or Unscanned)"}
